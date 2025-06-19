@@ -37,11 +37,19 @@ function Login() {
       if (response.data.status) {
         setMessage("เข้าสู่ระบบสำเร็จ");
         setSeverity("success");
+        // เก็บข้อมูลผู้ใช้ใน localStorage
+        localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("firstname", response.data.firstname);
+        localStorage.setItem("lastname", response.data.lastname);
+        setOpen(true);
+        setTimeout(() => {
+          navigate("/homepage");
+        }, 1200);
       } else {
         setMessage(response.data.message);
         setSeverity("error");
+        setOpen(true);
       }
-      setOpen(true);
     } catch (error) {
       console.error("Login error:", error);
       setMessage("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
