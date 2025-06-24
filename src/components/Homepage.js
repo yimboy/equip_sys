@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -11,10 +11,13 @@ import {
   Alert,
   Menu,
   MenuItem,
+  Avatar,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+// import Inventory2RoundedIcon from "@mui/icons-material/Inventory2Rounded"; // ลบไอคอนเดิม
 import { useNavigate } from "react-router-dom";
+import logo from "../assets/logo.png"; // เพิ่มโลโก้ (แก้ path ตามที่เก็บโลโก้จริง)
 
 const theme = createTheme({
   typography: {
@@ -25,12 +28,55 @@ const theme = createTheme({
 function HomePage() {
   const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null); // สำหรับเมนูผู้ใช้
+  const [profilePic, setProfilePic] = useState(null);
   const navigate = useNavigate();
+
+  // ออกจากระบบอัตโนมัติเมื่อปิด/refresh เว็บ
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      localStorage.removeItem("isLoggedIn");
+      localStorage.removeItem("firstname");
+      localStorage.removeItem("lastname");
+      localStorage.removeItem("userID");
+      localStorage.removeItem("profilePic");
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
 
   // ตรวจสอบสถานะการล็อกอิน
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
   const lastname = localStorage.getItem("lastname");
+
+  // โหลดรูปโปรไฟล์จาก localStorage (ถ้ามี)
+  useEffect(() => {
+    if (isLoggedIn) {
+      // กรณี profilePic ถูกเก็บใน localStorage
+      const pic = localStorage.getItem("profilePic");
+      if (pic) {
+        setProfilePic(pic);
+      } else {
+        // ถ้าไม่มีใน localStorage ให้ลองดึงจาก backend (ถ้ามี userID)
+        const userID = localStorage.getItem("userID");
+        if (userID) {
+          fetch(`http://localhost:4000/api/profile/${userID}`)
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.imageFile) {
+                setProfilePic(data.imageFile);
+                localStorage.setItem("profilePic", data.imageFile);
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    } else {
+      setProfilePic(null);
+    }
+  }, [isLoggedIn]);
 
   // ฟังก์ชันสำหรับปุ่มที่ต้องล็อกอิน
   const handleProtectedClick = (path) => {
@@ -63,6 +109,8 @@ function HomePage() {
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("firstname");
     localStorage.removeItem("lastname");
+    localStorage.removeItem("userID");
+    localStorage.removeItem("profilePic");
     handleMenuClose();
     navigate("/login");
   };
@@ -84,6 +132,14 @@ function HomePage() {
         {/* Header */}
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
+            <IconButton color="inherit" edge="start" sx={{ mr: 1 }}>
+              <Box
+                component="img"
+                src={logo}
+                alt="logo"
+                sx={{ width: 36, height: 36, objectFit: "contain" }}
+              />
+            </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
               ระบบเบิก-จ่ายอุปกรณ์
             </Typography>
@@ -96,8 +152,13 @@ function HomePage() {
               color="inherit"
               edge="end"
               onClick={handleUserIconClick}
+              sx={{ p: 0, ml: 1 }}
             >
-              <AccountCircleIcon />
+              {isLoggedIn && profilePic ? (
+                <Avatar src={profilePic} sx={{ width: 36, height: 36 }} />
+              ) : (
+                <AccountCircleIcon sx={{ width: 36, height: 36 }} />
+              )}
             </IconButton>
             {/* เมนูผู้ใช้ */}
             <Menu

@@ -41,6 +41,7 @@ function Login() {
         localStorage.setItem("isLoggedIn", "true");
         localStorage.setItem("firstname", response.data.firstname);
         localStorage.setItem("lastname", response.data.lastname);
+        localStorage.setItem("userID", response.data.userID);
         setOpen(true);
         setTimeout(() => {
           navigate("/homepage");
