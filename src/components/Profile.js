@@ -41,6 +41,7 @@ const Profile = () => {
     lastName: "",
     email: "",
     mobilePhone: "",
+    division: "",
   });
   const [preview, setPreview] = useState(null);
 
@@ -60,6 +61,7 @@ const Profile = () => {
           lastName: response.data.lastName,
           email: response.data.email,
           mobilePhone: response.data.mobilePhone,
+          division: response.data.division || "", // ถ้าไม่มีข้อมูล division ให้เป็นค่าว่าง
         });
         setPreview(response.data.imageFile || null); // base64 string or null
         setLoading(false);
@@ -241,6 +243,13 @@ const Profile = () => {
                       value={formData.mobilePhone}
                       onChange={handleInputChange}
                     />
+                    <TextField
+                      fullWidth
+                      label="กองงาน"
+                      name="division"
+                      value={formData.division}
+                      onChange={handleInputChange}
+                    />
                     <Box display="flex" justifyContent="center" gap={2}>
                       <Button type="submit" variant="contained" color="primary">
                         บันทึก
@@ -287,6 +296,14 @@ const Profile = () => {
                     </Typography>
                     <Typography variant="body1" fontWeight={500}>
                       {profile.mobilePhone}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      กองงาน
+                    </Typography>
+                    <Typography variant="body1" fontWeight={500}>
+                      {profile.division}
                     </Typography>
                   </Box>
                   <Box display="flex" justifyContent="center">

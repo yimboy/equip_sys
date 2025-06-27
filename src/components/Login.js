@@ -8,6 +8,10 @@ import {
   Paper,
   Snackbar,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
@@ -25,6 +29,11 @@ function Login() {
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
   const [severity, setSeverity] = useState("info");
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotUsername, setForgotUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -66,6 +75,45 @@ function Login() {
 
   const handleRegisterClick = () => {
     navigate("/register");
+  };
+
+  // ฟังก์ชันสำหรับ Forgot Password
+  const handleForgotPassword = async () => {
+    if (!forgotUsername || !newPassword || !confirmPassword) {
+      setMessage("กรุณากรอกข้อมูลให้ครบถ้วน");
+      setSeverity("error");
+      setOpen(true);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMessage("รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน");
+      setSeverity("error");
+      setOpen(true);
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await axios.post("http://localhost:4000/api/forgot-password", {
+        username: forgotUsername,
+        newPassword,
+      });
+      if (res.data.status) {
+        setMessage("เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบใหม่");
+        setSeverity("success");
+        setForgotOpen(false);
+        setForgotUsername("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        setMessage(res.data.message || "ไม่สามารถเปลี่ยนรหัสผ่านได้");
+        setSeverity("error");
+      }
+    } catch (err) {
+      setMessage("เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน");
+      setSeverity("error");
+    }
+    setForgotLoading(false);
+    setOpen(true);
   };
 
   return (
@@ -120,6 +168,15 @@ function Login() {
             >
               สมัครสมาชิก
             </Button>
+            <Button
+              variant="text"
+              color="info"
+              fullWidth
+              sx={{ mt: 1 }}
+              onClick={() => setForgotOpen(true)}
+            >
+              ลืมรหัสผ่าน?
+            </Button>
           </form>
         </Paper>
         <Snackbar
@@ -132,6 +189,50 @@ function Login() {
             {message}
           </Alert>
         </Snackbar>
+        {/* Dialog สำหรับลืมรหัสผ่าน */}
+        <Dialog open={forgotOpen} onClose={() => setForgotOpen(false)}>
+          <DialogTitle>ลืมรหัสผ่าน</DialogTitle>
+          <DialogContent>
+            <TextField
+              label="ชื่อผู้ใช้"
+              variant="outlined"
+              fullWidth
+              margin="normal"
+              value={forgotUsername}
+              onChange={(e) => setForgotUsername(e.target.value)}
+            />
+            <TextField
+              label="รหัสผ่านใหม่"
+              type="password"
+              variant="outlined"
+              fullWidth
+              margin="normal"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <TextField
+              label="ยืนยันรหัสผ่านใหม่"
+              type="password"
+              variant="outlined"
+              fullWidth
+              margin="normal"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setForgotOpen(false)} color="secondary">
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={handleForgotPassword}
+              color="primary"
+              disabled={forgotLoading}
+            >
+              บันทึก
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </ThemeProvider>
   );

@@ -4,6 +4,7 @@ const cors = require('cors');
 const app = express();
 const multer = require('multer');
 const path = require('path');
+const bcrypt = require('bcrypt');
 const port = 4000;
 
 //Database(MySql) configuration
@@ -41,7 +42,7 @@ app.post('/api/register', function(req, res){
     res.send({ message: 'ลงทะเบียนสำเร็จ','status':true });
 }
   );
-});
+}); 
 
 //Login
 app.post('/api/login', function(req, res){
@@ -66,10 +67,35 @@ app.post('/api/login', function(req, res){
 }
 );
    
+// Forgot Password
+app.post('/api/forgot-password', (req, res) => {
+  const { username, newPassword } = req.body;
+
+  if (!username || !newPassword) {
+    return res.status(400).json({ status: false, message: "กรุณาระบุ username และ newPassword" });
+  }
+
+  const sql = "UPDATE user SET password = ? WHERE username = ?";
+  db.query(sql, [newPassword, username], (err, result) => {
+    if (err) {
+      console.error("❌ SQL Error:", err);
+      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดทางเซิร์ฟเวอร์" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: false, message: "ไม่พบผู้ใช้นี้" });
+    }
+
+    res.json({ status: true, message: "เปลี่ยนรหัสผ่านสำเร็จ" });
+  });
+});
+
+
+
 // ดึงข้อมูลโปรไฟล์ผู้ใช้ตาม userID (base64)
 app.get('/api/profile/:id', (req, res) => {
   const userID = req.params.id; // ✅ แก้ตรงนี้
-  const sql = "SELECT  firstName, lastName, email, mobilePhone, imageFile FROM user WHERE userID = ?";
+  const sql = "SELECT  firstName, lastName, email, mobilePhone, division, imageFile FROM user WHERE userID = ?";
   db.query(sql, [userID], (err, result) => {
     if (err) {
       console.error("❌ SQL Error: " + err);
@@ -85,22 +111,27 @@ app.get('/api/profile/:id', (req, res) => {
 
 // อัปเดตข้อมูลโปรไฟล์และอัปโหลดรูป (base64)
 app.post('/api/profile/update', (req, res) => {
-  const { firstName, lastName, email, mobilePhone, imageFile } = req.body;
+  const { userID, firstName, lastName, email, mobilePhone, division, imageFile } = req.body;
+
   if (!userID) {
     return res.status(400).json({ status: false, message: "ไม่พบ userID" });
   }
-  const sql = "UPDATE user SET firstName = ?, lastName = ?, email = ?, mobilePhone = ?, imageFile = ? WHERE userID = ?";
-  db.query(sql, [firstName, lastName, email, mobilePhone, imageFile, userID], (err, result) => {
+
+  const sql = "UPDATE user SET firstName = ?, lastName = ?, email = ?, mobilePhone = ?, division = ?, imageFile = ? WHERE userID = ?";
+  db.query(sql, [firstName, lastName, email, mobilePhone, division, imageFile, userID], (err, result) => {
     if (err) {
       console.error("❌ SQL Error: " + err);
       return res.status(500).json({ message: "เกิดข้อผิดพลาด", status: false });
     }
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "ไม่พบข้อมูลผู้ใช้งาน", status: false });
     }
+
     res.json({ message: "ข้อมูลถูกอัปเดตเรียบร้อยแล้ว", status: true });
   });
 });
+
 
 //Web sever
 app.listen(port, function(){
