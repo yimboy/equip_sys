@@ -200,7 +200,7 @@ function HomePage() {
               variant="contained"
               color="primary"
               size="large"
-              onClick={() => handleProtectedClick("/request")}
+              onClick={() => handleProtectedClick("/bring")}
             >
               เบิก-จ่ายอุปกรณ์สำนักงาน
             </Button>

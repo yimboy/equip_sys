@@ -4,7 +4,8 @@ const cors = require('cors');
 const app = express();
 const multer = require('multer');
 const path = require('path');
-const bcrypt = require('bcrypt');
+const upload = multer({ dest: "uploads/" }); // โฟลเดอร์เก็บไฟล์ชั่วคราว
+const db = require("./db"); // สมมติคุณมีโมดูลเชื่อม MySQL
 const port = 4000;
 
 //Database(MySql) configuration
@@ -130,6 +131,95 @@ app.post('/api/profile/update', (req, res) => {
 
     res.json({ message: "ข้อมูลถูกอัปเดตเรียบร้อยแล้ว", status: true });
   });
+});
+
+// ดึงข้อมูลอุปกรณ์สำนักงานทั้งหมดจากตาราง equipments
+app.get('/api/equipment', (req, res) => {
+  const sql = "SELECT * FROM equipments";
+  db.query(sql, (err, result) => {
+    if (err) {
+      console.error("❌ SQL Error: " + err);
+      return res.status(500).json({ message: "เกิดข้อผิดพลาด", status: false });
+    }
+    res.json(result);
+  });
+});
+
+// อัปเดตจำนวนอุปกรณ์ที่ถูกเบิก
+
+app.post("/api/bring-confirm", upload.single("idCardImg"), (req, res) => {
+  const { selectedDate, requestAmounts } = req.body;
+  const userID = req.headers['userid']; // สมมติเอา userID มาจาก header (หรือ token / session ตามจริง)
+
+  if (!selectedDate || !requestAmounts) {
+    return res.json({ status: false, message: "ข้อมูลไม่ครบถ้วน" });
+  }
+
+  let requestObj;
+  try {
+    requestObj = JSON.parse(requestAmounts);
+  } catch {
+    return res.json({ status: false, message: "requestAmounts ไม่ถูกต้อง" });
+  }
+
+  if (!req.file) {
+    return res.json({ status: false, message: "กรุณาแนบรูปบัตรประจำตัว" });
+  }
+
+  const idCardImgPath = req.file.path;
+
+  // 1. เตรียมคำสั่งอัพเดตจำนวนคงเหลือใน equipments
+  const updatePromises = Object.entries(requestObj).map(([equipmentID, amount]) => {
+    return new Promise((resolve, reject) => {
+      // ตรวจสอบจำนวนคงเหลือก่อน
+      db.query(
+        "SELECT amount FROM equipments WHERE equipmentID = ?",
+        [equipmentID],
+        (err, results) => {
+          if (err) return reject(err);
+          if (results.length === 0) return reject(new Error(`ไม่พบอุปกรณ์ ID ${equipmentID}`));
+
+          const currentAmount = results[0].amount;
+          const newAmount = currentAmount - amount;
+          if (newAmount < 0) return reject(new Error(`จำนวนเบิกเกินคงเหลือ ID ${equipmentID}`));
+
+          // อัพเดตจำนวนคงเหลือ
+          db.query(
+            "UPDATE equipments SET amount = ? WHERE equipmentID = ?",
+            [newAmount, equipmentID],
+            (err2) => {
+              if (err2) return reject(err2);
+              resolve();
+            }
+          );
+        }
+      );
+    });
+  });
+
+  // 2. เตรียมคำสั่ง INSERT log การเบิกลง bring
+  const insertPromises = Object.entries(requestObj).map(([equipmentID, amount]) => {
+    return new Promise((resolve, reject) => {
+      db.query(
+        "INSERT INTO bring (equipmentID, amount, selectedDate, userID, idCardImgPath) VALUES (?, ?, ?, ?, ?)",
+        [equipmentID, amount, selectedDate, userID || null, idCardImgPath],
+        (err) => {
+          if (err) return reject(err);
+          resolve();
+        }
+      );
+    });
+  });
+
+  // ทำพร้อมกัน
+  Promise.all([...updatePromises, ...insertPromises])
+    .then(() => {
+      res.json({ status: true, message: "บันทึกการเบิกสำเร็จและอัพเดตจำนวนคงเหลือแล้ว" });
+    })
+    .catch((error) => {
+      console.error(error);
+      res.json({ status: false, message: error.message || "เกิดข้อผิดพลาด" });
+    });
 });
 
 
