@@ -53,14 +53,16 @@ function History() {
   const lastname = localStorage.getItem("lastname");
   const userID = localStorage.getItem("userID");
 
-  // ✅ ฟังก์ชันแปลง imageFile ให้เป็น src ที่แสดงได้
+  // ฟังก์ชันช่วยแปลงวันที่ ตัดเวลาออก (แสดงแค่ yyyy-mm-dd)
+  const formatDateOnly = (dateStr) => {
+    if (!dateStr) return "-";
+    return dateStr.split("T")[0];
+  };
+
   const getImageSrc = (imageFile) => {
     if (!imageFile) return null;
-
     if (imageFile.startsWith("data:")) return imageFile;
     if (imageFile.startsWith("http")) return imageFile;
-
-    // fallback เป็น base64 ดิบ
     return `data:image/jpeg;base64,${imageFile}`;
   };
 
@@ -134,7 +136,6 @@ function History() {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
-        {/* Header */}
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
             <IconButton color="inherit" edge="start" sx={{ mr: 1 }}>
@@ -178,7 +179,6 @@ function History() {
           </Toolbar>
         </AppBar>
 
-        {/* Main Content */}
         <Box sx={{ maxWidth: 1000, mx: "auto", mt: 6, p: 2 }}>
           <Typography variant="h5" gutterBottom>
             ประวัติการเบิก-ยืมอุปกรณ์ของคุณ
@@ -202,8 +202,7 @@ function History() {
               <TableHead>
                 <TableRow>
                   <TableCell>วันที่ทำรายการ</TableCell>
-                  <TableCell>ชื่ออุปกรณ์</TableCell>
-                  <TableCell>จำนวน</TableCell>
+                  <TableCell>จำนวนรายการ</TableCell>
                   <TableCell>วันรับของ</TableCell>
                   <TableCell>วันรับคืน</TableCell>
                   <TableCell>สถานะ</TableCell>
@@ -213,18 +212,17 @@ function History() {
               <TableBody>
                 {filteredHistory.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={6} align="center">
                       ไม่พบข้อมูล
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredHistory.map((item, idx) => (
                     <TableRow key={idx}>
-                      <TableCell>{item.date}</TableCell>
-                      <TableCell>{item.equipmentName}</TableCell>
-                      <TableCell>{item.amount}</TableCell>
-                      <TableCell>{item.receiveDate || "-"}</TableCell>
-                      <TableCell>{item.returnDate || "-"}</TableCell>
+                      <TableCell>{formatDateOnly(item.date)}</TableCell>
+                      <TableCell>{item.count}</TableCell>
+                      <TableCell>{formatDateOnly(item.receiveDate)}</TableCell>
+                      <TableCell>{formatDateOnly(item.returnDate)}</TableCell>
                       <TableCell>{item.status || "-"}</TableCell>
                       <TableCell>
                         <Button
@@ -243,33 +241,52 @@ function History() {
           </TableContainer>
         </Box>
 
-        {/* Dialog แสดงรายละเอียด */}
         <Dialog open={detailOpen} onClose={handleDetailClose} maxWidth="sm" fullWidth>
           <DialogTitle>รายละเอียดรายการ</DialogTitle>
           <DialogContent dividers>
             {selectedDetail && (
               <Box>
                 <Typography>
-                  <b>วันที่ทำรายการ:</b> {selectedDetail.date}
+                  <b>วันที่ทำรายการ:</b> {formatDateOnly(selectedDetail.date)}
                 </Typography>
                 <Typography>
                   <b>ประเภท:</b> {selectedDetail.type}
                 </Typography>
                 <Typography>
-                  <b>ชื่ออุปกรณ์:</b> {selectedDetail.equipmentName}
+                  <b>วันรับของ:</b> {formatDateOnly(selectedDetail.receiveDate)}
                 </Typography>
                 <Typography>
-                  <b>จำนวน:</b> {selectedDetail.amount}
-                </Typography>
-                <Typography>
-                  <b>วันรับของ:</b> {selectedDetail.receiveDate || "-"}
-                </Typography>
-                <Typography>
-                  <b>วันรับคืน:</b> {selectedDetail.returnDate || "-"}
+                  <b>วันรับคืน:</b> {formatDateOnly(selectedDetail.returnDate)}
                 </Typography>
                 <Typography>
                   <b>สถานะ:</b> {selectedDetail.status || "-"}
                 </Typography>
+
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="subtitle1" gutterBottom>
+                  รายการอุปกรณ์
+                </Typography>
+                {selectedDetail.details && selectedDetail.details.length > 0 ? (
+                  selectedDetail.details.map((d, idx) => (
+                    <Box key={idx} sx={{ mb: 1, pl: 2 }}>
+                      <Typography>
+                        • <b>ชื่อ:</b> {d.equipmentName}
+                      </Typography>
+                      <Typography>
+                        <b>จำนวน:</b> {d.amount}
+                      </Typography>
+                      <Typography>
+                        <b>วันรับของ:</b> {formatDateOnly(d.receiveDate)}
+                      </Typography>
+                      <Typography>
+                        <b>วันรับคืน:</b> {formatDateOnly(d.returnDate)}
+                      </Typography>
+                      <Divider sx={{ my: 1 }} />
+                    </Box>
+                  ))
+                ) : (
+                  <Typography>ไม่พบรายละเอียดอุปกรณ์</Typography>
+                )}
                 {selectedDetail.imageFile && (
                   <>
                     <Divider sx={{ my: 2 }} />

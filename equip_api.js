@@ -334,16 +334,17 @@ app.post('/api/borrow-confirm', upload.single('idCardImg'), (req, res) => {
     });
 });
 
-// API ดึงประวัติการเบิก-จ่าย (bring) ของ user
+// API ดึงประวัติการเบิก-จ่าย (bring)
 app.get('/api/history-bring', (req, res) => {
   const userID = req.query.userID;
   if (!userID) {
     return res.json([]);
   }
 
-  // join bring, bringdetail, equipments
+  // JOIN bring, bringdetail, equipments
   const sql = `
     SELECT 
+      b.bringID,
       b.bringDate AS date,
       b.receiveDate,
       bd.equipmentID,
@@ -355,98 +356,140 @@ app.get('/api/history-bring', (req, res) => {
     JOIN bringdetail bd ON b.bringID = bd.bringID
     JOIN equipments e ON bd.equipmentID = e.equipmentID
     WHERE b.userID = ?
-    ORDER BY b.bringDate DESC
+    ORDER BY b.bringDate DESC, b.bringID DESC
   `;
 
   db.query(sql, [userID], (err, rows) => {
     if (err) {
       console.error(err);
-      return res.json([]);
+      return res.status(500).json({ error: "Database error" });
     }
 
-    // แปลงข้อมูลให้อยู่ในรูปแบบที่ frontend ใช้
-    const result = rows.map(row => {
-      let statusText = "-";
-      switch (row.statusID) {
-        case 0: statusText = "กำลังตรวจสอบ"; break;
-        case 1: statusText = "ยืนยันการเบิก"; break;
-        case 2: statusText = "รับของเรียบร้อย"; break;
-        default: statusText = "ไม่ทราบสถานะ";
+    // Group by bringID
+    const bringMap = new Map();
+
+    rows.forEach(row => {
+      if (!bringMap.has(row.bringID)) {
+        bringMap.set(row.bringID, {
+          bringID: row.bringID,
+          date: row.date,
+          receiveDate: row.receiveDate,
+          returnDate: null,          // ไม่มีวันคืนสำหรับเบิก-จ่าย
+          status: getStatusText(row.statusID),
+          type: "เบิก-จ่าย",
+          imageFile: row.imageFile || null,
+          details: []
+        });
       }
 
-      return {
-        type: "เบิก-จ่าย",
-        date: row.date,
-        receiveDate: row.receiveDate,
+      bringMap.get(row.bringID).details.push({
         equipmentID: row.equipmentID,
         equipmentName: row.equipmentName,
         amount: row.amount,
-        status: statusText,
-        imageFile: row.imageFile || null,
-        returnDate: null // ไม่มีวันรับคืนสำหรับเบิก-จ่าย
-      };
+        receiveDate: row.receiveDate
+      });
     });
+
+    // Convert to array and add count
+    const result = Array.from(bringMap.values()).map(bring => ({
+      ...bring,
+      count: bring.details.length
+    }));
 
     res.json(result);
   });
 });
+
+function getStatusText(statusID) {
+  switch (statusID) {
+    case 0: return "กำลังตรวจสอบ";
+    case 1: return "ยืนยันการเบิก";
+    case 2: return "รับของเรียบร้อย";
+    default: return "ไม่ทราบสถานะ";
+  }
+}
+
+
 
 // API ดึงประวัติการยืม-คืน (borrow)
 app.get('/api/history-borrow', (req, res) => {
   const userID = req.query.userID;
-  if (!userID) return res.json([]);
+  if (!userID) {
+    return res.json([]);
+  }
 
+  // JOIN borrow, borrowdetail, equipments
   const sql = `
     SELECT 
-      br.borrowDate AS date,
-      br.receiveDate,
-      br.returnDate,
+      bo.borrowID,
+      bo.borrowDate AS date,
+      bo.receiveDate,
+      bo.returnDate,
       bd.equipmentID,
       e.equipmentName,
       bd.amount,
-      br.statusID,
-      br.imageFile
-    FROM borrow br
-    JOIN borrowdetail bd ON br.borrowID = bd.borrowID
+      bo.statusID,
+      bo.imageFile
+    FROM borrow bo
+    JOIN borrowdetail bd ON bo.borrowID = bd.borrowID
     JOIN equipments e ON bd.equipmentID = e.equipmentID
-    WHERE br.userID = ?
-    ORDER BY br.borrowDate DESC
+    WHERE bo.userID = ?
+    ORDER BY bo.borrowDate DESC, bo.borrowID DESC
   `;
 
   db.query(sql, [userID], (err, rows) => {
     if (err) {
       console.error(err);
-      return res.json([]);
+      return res.status(500).json({ error: "Database error" });
     }
 
-    const result = rows.map(row => {
-      let statusText = "-";
-      switch (row.statusID) {
-        case 0: statusText = "กำลังตรวจสอบ"; break;
-        case 1: statusText = "ยืนยันการยืม"; break;
-        case 2: statusText = "รับของเรียบร้อย"; break;
-        case 3: statusText = "ตรวจสอบอุปกรณ์"; break;
-        case 4: statusText = "คืนอุปกรณ์เรียบร้อย"; break;
-        case 5: statusText = "อุปกรณ์เสียหาย"; break;
-        default: statusText = "ไม่ทราบสถานะ";
+    // Group by borrowID
+    const borrowMap = new Map();
+
+    rows.forEach(row => {
+      if (!borrowMap.has(row.borrowID)) {
+        borrowMap.set(row.borrowID, {
+          borrowID: row.borrowID,
+          date: row.date,
+          receiveDate: row.receiveDate,
+          returnDate: row.returnDate,
+          status: getBorrowStatusText(row.statusID),
+          type: "ยืม-คืน",
+          imageFile: row.imageFile || null,
+          details: []
+        });
       }
 
-      return {
-        type: "ยืม-คืน",
-        date: row.date,
-        receiveDate: row.receiveDate,
-        returnDate: row.returnDate,
+      borrowMap.get(row.borrowID).details.push({
         equipmentID: row.equipmentID,
         equipmentName: row.equipmentName,
         amount: row.amount,
-        status: statusText,
-        imageFile: row.imageFile || null
-      };
+        receiveDate: row.receiveDate,
+        returnDate: row.returnDate
+      });
     });
+
+    // Convert to array and add count
+    const result = Array.from(borrowMap.values()).map(borrow => ({
+      ...borrow,
+      count: borrow.details.length
+    }));
 
     res.json(result);
   });
 });
+
+// ฟังก์ชันแปลงสถานะยืม-คืนเป็นภาษาไทย
+function getBorrowStatusText(statusID) {
+  switch (statusID) {
+    case 0: return "กำลังตรวจสอบ";
+    case 1: return "ยืนยันการยืม";
+    case 2: return "รับของเรียบร้อย";
+    case 3: return "คืนของแล้ว";
+    default: return "ไม่ทราบสถานะ";
+  }
+}
+
 
 
 

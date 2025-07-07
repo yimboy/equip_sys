@@ -33,7 +33,7 @@ function HomePage() {
 
   const navigate = useNavigate();
 
-  // ออกจากระบบอัตโนมัติเมื่อปิด/refresh
+  // ออกจากระบบอัตโนมัติเมื่อปิด/refresh หน้าเว็บ
   useEffect(() => {
     const handleBeforeUnload = () => {
       localStorage.removeItem("isLoggedIn");
@@ -59,7 +59,6 @@ function HomePage() {
           .then((res) => res.json())
           .then((data) => {
             if (data.status) {
-              // อัปเดตชื่อ
               if (data.firstName) {
                 localStorage.setItem("firstname", data.firstName);
                 setFirst(data.firstName);
@@ -68,7 +67,6 @@ function HomePage() {
                 localStorage.setItem("lastname", data.lastName);
                 setLast(data.lastName);
               }
-              // อัปเดตรูป
               if (data.imageFile) {
                 localStorage.setItem("profilePic", data.imageFile);
                 setProfilePic(data.imageFile);
@@ -179,6 +177,7 @@ function HomePage() {
             </Menu>
           </Toolbar>
         </AppBar>
+
         <Box
           sx={{
             minHeight: "calc(100vh - 64px)",
@@ -210,7 +209,15 @@ function HomePage() {
               size="large"
               onClick={() => handleProtectedClick("/borrow")}
             >
-              ยืม-คืนอุปกรณ์สำนักงาน
+              ยืมโสตทัศนูปกรณ์
+            </Button>
+            <Button
+              variant="contained"
+              color="warning"
+              size="large"
+              onClick={() => handleProtectedClick("/return")}
+            >
+              คืนโสตทัศนูปกรณ์
             </Button>
             <Button
               variant="outlined"
@@ -222,6 +229,7 @@ function HomePage() {
             </Button>
           </Stack>
         </Box>
+
         <Snackbar
           open={open}
           autoHideDuration={1200}
