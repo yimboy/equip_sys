@@ -33,11 +33,12 @@ const theme = createTheme({
   },
 });
 
-function Bring() {
+function Borrow() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const [equipment, setEquipment] = useState([]);
   const [selectedDate, setSelectedDate] = useState("");
+  const [returnDate, setReturnDate] = useState("");
   const [idCardImg, setIdCardImg] = useState(null);
   const [idCardPreview, setIdCardPreview] = useState(null);
   const [open, setOpen] = useState(false);
@@ -50,13 +51,12 @@ function Bring() {
   const firstname = localStorage.getItem("firstname");
   const lastname = localStorage.getItem("lastname");
 
-  // โหลดข้อมูลอุปกรณ์สำนักงาน
+  // โหลดข้อมูลอุปกรณ์สำนักงาน typeID = 2
   const loadEquipment = () => {
     fetch("http://localhost:4000/api/equipment")
       .then((res) => res.json())
       .then((data) => {
-        // กรองเฉพาะอุปกรณ์ที่ typeID === 1
-        const filtered = data.filter((item) => item.typeID === 1);
+        const filtered = data.filter((item) => item.typeID === 2);
         setEquipment(filtered);
       })
       .catch(() => setEquipment([]));
@@ -124,40 +124,41 @@ function Bring() {
   };
 
   const handleConfirm = () => {
-    if (!selectedDate || !idCardImg) {
-      setAlertMsg("กรุณากรอกวันรับของและแนบรูปบัตรประจำตัว");
+    if (!selectedDate || !returnDate || !idCardImg) {
+      setAlertMsg("กรุณากรอกวันรับของ วันรับคืน และแนบรูปบัตรประจำตัว");
       setAlertSeverity("error");
       setOpen(true);
       return;
     }
-  const userID = localStorage.getItem("userID");
-    // สร้าง FormData
+    const userID = localStorage.getItem("userID");
     const formData = new FormData();
     formData.append("selectedDate", selectedDate);
+    formData.append("returnDate", returnDate); // เพิ่มวันรับคืน
     formData.append("idCardImg", idCardImg);
     formData.append("requestAmounts", JSON.stringify(requestAmounts));
 
-    fetch("http://localhost:4000/api/bring-confirm", {
+    fetch("http://localhost:4000/api/borrow-confirm", {
       method: "POST",
-     headers: {
-      "x-user-id": userID, // ส่ง userID ใน header
-    },
-    body: formData,
-  })
+      headers: {
+        "x-user-id": userID,
+      },
+      body: formData,
+    })
       .then((res) => res.json())
       .then((data) => {
         if (data.status) {
-          setAlertMsg("ส่งคำขอเบิก-จ่ายสำเร็จ");
+          setAlertMsg("ส่งคำขอยืม-คืนสำเร็จ");
           setAlertSeverity("success");
           setOpen(true);
           setRequestAmounts({});
           setSelectedDate("");
+          setReturnDate("");
           setIdCardImg(null);
           setIdCardPreview(null);
-          loadEquipment(); // โหลดข้อมูลใหม่
+          loadEquipment();
           setTimeout(() => {
             navigate("/history");
-          }, 1200); // รอให้แสดง snackbar สักครู่ก่อนเปลี่ยนหน้า
+          }, 1200);
         } else {
           setAlertMsg(`เกิดข้อผิดพลาด: ${data.message}`);
           setAlertSeverity("error");
@@ -191,7 +192,7 @@ function Bring() {
               />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              เบิก-จ่ายอุปกรณ์สำนักงาน
+              ยืม-คืนอุปกรณ์สำนักงาน
             </Typography>
             {isLoggedIn && (
               <Typography sx={{ mr: 1 }}>
@@ -232,7 +233,7 @@ function Bring() {
         {/* Main Content */}
         <Box sx={{ maxWidth: 900, mx: "auto", mt: 6, p: 2 }}>
           <Typography variant="h5" gutterBottom>
-            รายการอุปกรณ์สำนักงาน
+            รายการอุปกรณ์สำนักงาน (ยืม-คืน)
           </Typography>
           <TableContainer component={Paper}>
             <Table>
@@ -241,7 +242,7 @@ function Bring() {
                   <TableCell>ลำดับ</TableCell>
                   <TableCell>ชื่ออุปกรณ์</TableCell>
                   <TableCell>จำนวนคงเหลือ</TableCell>
-                  <TableCell>จำนวนที่ต้องการเบิก</TableCell>
+                  <TableCell>จำนวนที่ต้องการยืม</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -284,6 +285,14 @@ function Bring() {
               InputLabelProps={{ shrink: true }}
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
+              sx={{ minWidth: 200 }}
+            />
+            <TextField
+              label="กำหนดคืน"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              value={returnDate}
+              onChange={(e) => setReturnDate(e.target.value)}
               sx={{ minWidth: 200 }}
             />
             <label>
@@ -338,4 +347,4 @@ function Bring() {
   );
 }
 
-export default Bring;
+export default Borrow;
