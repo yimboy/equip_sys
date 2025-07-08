@@ -30,6 +30,7 @@ function HomePage() {
   const [profilePic, setProfilePic] = useState(null);
   const [first, setFirst] = useState(localStorage.getItem("firstname") || "");
   const [last, setLast] = useState(localStorage.getItem("lastname") || "");
+  const [roleID, setRoleID] = useState(parseInt(localStorage.getItem("roleID") || "0"));
 
   const navigate = useNavigate();
 
@@ -41,6 +42,7 @@ function HomePage() {
       localStorage.removeItem("lastname");
       localStorage.removeItem("userID");
       localStorage.removeItem("profilePic");
+      localStorage.removeItem("roleID");
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
@@ -70,6 +72,10 @@ function HomePage() {
               if (data.imageFile) {
                 localStorage.setItem("profilePic", data.imageFile);
                 setProfilePic(data.imageFile);
+              }
+              if (data.roleID) {
+                localStorage.setItem("roleID", data.roleID);
+                setRoleID(parseInt(data.roleID));
               }
             }
           })
@@ -112,6 +118,7 @@ function HomePage() {
     localStorage.removeItem("lastname");
     localStorage.removeItem("userID");
     localStorage.removeItem("profilePic");
+    localStorage.removeItem("roleID");
     handleMenuClose();
     navigate("/login");
   };
@@ -219,7 +226,19 @@ function HomePage() {
             >
               คืนโสตทัศนูปกรณ์
             </Button>
-            <Button
+
+            {/* ✅ ปุ่มพิเศษ: แสดงเฉพาะ roleID = 2 หรือ 3 */}
+            {(roleID === 2 || roleID === 3) && (
+              <Button
+                variant="contained"
+                color="secondary"
+                size="large"
+                onClick={() => handleProtectedClick("/approve")}
+              >
+                อนุมัติการเบิก-จ่าย
+              </Button>
+            )}
+          <Button
               variant="outlined"
               color="info"
               size="large"

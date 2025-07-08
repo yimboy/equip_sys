@@ -51,6 +51,7 @@ function Login() {
         localStorage.setItem("firstname", response.data.firstname);
         localStorage.setItem("lastname", response.data.lastname);
         localStorage.setItem("userID", response.data.userID);
+        localStorage.setItem("roleID", response.data.roleID);   // ✅ เก็บ roleID
         setOpen(true);
         setTimeout(() => {
           navigate("/homepage");
