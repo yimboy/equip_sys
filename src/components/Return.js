@@ -9,7 +9,6 @@ import {
   MenuItem,
   Avatar,
   Button,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -19,7 +18,7 @@ import {
   Paper,
   Snackbar,
   Alert,
-  Input,
+  Chip,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -35,12 +34,10 @@ const theme = createTheme({
 function Return() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
-  const [borrowed, setBorrowed] = useState([]);
+  const [history, setHistory] = useState([]);
   const [open, setOpen] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertSeverity, setAlertSeverity] = useState("info");
-  const [returnImg, setReturnImg] = useState(null);
-  const [returnImgPreview, setReturnImgPreview] = useState(null);
   const navigate = useNavigate();
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
@@ -48,13 +45,13 @@ function Return() {
   const lastname = localStorage.getItem("lastname");
   const userID = localStorage.getItem("userID");
 
-  // โหลดข้อมูลอุปกรณ์ที่ยืม
+  // โหลดประวัติยืม-คืน
   useEffect(() => {
     if (!userID) return;
-    fetch(`http://localhost:4000/api/borrowed?userID=${userID}`)
+    fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`)
       .then((res) => res.json())
-      .then((data) => setBorrowed(data))
-      .catch(() => setBorrowed([]));
+      .then((data) => setHistory(data))
+      .catch(() => setHistory([]));
   }, [userID]);
 
   // โหลดรูปโปรไฟล์
@@ -85,46 +82,29 @@ function Return() {
     navigate("/profile");
   };
 
-  const handleReturnImgChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setReturnImg(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setReturnImgPreview(reader.result);
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleReturnClick = (borrowID) => {
-    if (!returnImg) {
-      setAlertMsg("กรุณาแนบรูปหลักฐานก่อนส่งคืน");
-      setAlertSeverity("error");
-      setOpen(true);
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("userID", userID);
-    formData.append("returnImg", returnImg);
-    formData.append("returnIDs", JSON.stringify([borrowID]));
-
-    fetch("http://localhost:4000/api/return-confirm", {
+    // กดปุ่ม "ส่งคืน" → เปลี่ยนสถานะเป็น "รอตรวจสอบ" (statusID = 0)
+    fetch("http://localhost:4000/api/update-status", {
       method: "POST",
-      body: formData,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        borrowID,
+        statusID: 0, // 0 = รอตรวจสอบ
+      }),
     })
       .then((res) => res.json())
       .then((data) => {
         if (data.status) {
-          setAlertMsg("คืนอุปกรณ์สำเร็จ");
+          setAlertMsg("ส่งคืนสำเร็จ → อยู่ระหว่างตรวจสอบอุปกรณ์");
           setAlertSeverity("success");
           setOpen(true);
-          setReturnImg(null);
-          setReturnImgPreview(null);
           // โหลดข้อมูลใหม่
-          fetch(`http://localhost:4000/api/borrowed?userID=${userID}`)
+          fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`)
             .then((res) => res.json())
-            .then((data) => setBorrowed(data))
-            .catch(() => setBorrowed([]));
+            .then((data) => setHistory(data))
+            .catch(() => setHistory([]));
         } else {
           setAlertMsg(`เกิดข้อผิดพลาด: ${data.message}`);
           setAlertSeverity("error");
@@ -149,7 +129,7 @@ function Return() {
         {/* Header */}
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
-            <IconButton color="inherit" edge="start" sx={{ mr: 1 }}>
+            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")} >
               <Box
                 component="img"
                 src={logo}
@@ -197,84 +177,110 @@ function Return() {
         </AppBar>
 
         {/* Main Content */}
-        <Box sx={{ maxWidth: 900, mx: "auto", mt: 6, p: 2 }}>
+        <Box sx={{ maxWidth: 1100, mx: "auto", mt: 6, p: 2 }}>
           <Typography variant="h5" gutterBottom>
-            รายการอุปกรณ์โสตฯ ที่ยืม
+            ประวัติการยืม-คืนอุปกรณ์โสตฯ
           </Typography>
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>ลำดับ</TableCell>
+                  <TableCell>วันที่ยืม</TableCell>
                   <TableCell>ชื่ออุปกรณ์</TableCell>
                   <TableCell>จำนวน</TableCell>
+                  <TableCell>วันที่รับของ</TableCell>
                   <TableCell>กำหนดคืน</TableCell>
+                  <TableCell>สถานะ</TableCell>
                   <TableCell>การจัดการ</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {borrowed.length === 0 ? (
+                {history.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">
-                      ไม่พบข้อมูลอุปกรณ์ที่ยืม
+                    <TableCell colSpan={8} align="center">
+                      ไม่พบข้อมูล
                     </TableCell>
                   </TableRow>
                 ) : (
-                  borrowed.map((item, idx) => (
-                    <TableRow key={item.borrowID || idx}>
-                      <TableCell>{idx + 1}</TableCell>
-                      <TableCell>{item.equipmentName}</TableCell>
-                      <TableCell>{item.amount}</TableCell>
-                      <TableCell>
-                        {item.returnDate
-                          ? new Date(item.returnDate).toLocaleDateString()
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          size="small"
-                          onClick={() => handleReturnClick(item.borrowID)}
-                        >
-                          ส่งคืน
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  history
+                    // กรองเอาเฉพาะสถานะที่ยังไม่ใช่ "ส่งคืนแล้ว" (statusID !== 3)
+                    .filter((row) => row.statusID !== 3)
+                    .map((row, idx) =>
+                      row.details.map((detail, dIdx) => (
+                        <TableRow key={row.borrowID + "-" + dIdx}>
+                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell>
+                            {row.date
+                              ? new Date(row.date).toLocaleDateString()
+                              : "-"}
+                          </TableCell>
+                          <TableCell>{detail.equipmentName}</TableCell>
+                          <TableCell>{detail.amount}</TableCell>
+                          <TableCell>
+                            {detail.receiveDate
+                              ? new Date(detail.receiveDate).toLocaleDateString()
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            {detail.returnDate
+                              ? new Date(detail.returnDate).toLocaleDateString()
+                              : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={
+                                row.statusID === 0
+                                  ? "รอตรวจสอบ"
+                                  : row.statusID === 1
+                                  ? "อนุมัติ"
+                                  : row.statusID === 2
+                                  ? "ไม่อนุมัติ"
+                                  : row.statusID === 3
+                                  ? "ส่งคืนแล้ว"
+                                  : "ไม่ทราบสถานะ"
+                              }
+                              color={
+                                row.statusID === 0
+                                  ? "warning"
+                                  : row.statusID === 1
+                                  ? "info"
+                                  : row.statusID === 2
+                                  ? "error"
+                                  : row.statusID === 3
+                                  ? "success"
+                                  : "default"
+                              }
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {/* แสดงปุ่มส่งคืนเฉพาะเมื่อสถานะไม่ใช่ 0 (รอตรวจสอบ) และไม่ใช่ 3 (ส่งคืนแล้ว) */}
+                            {row.statusID !== 0 && row.statusID !== 3 && (
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                                onClick={() => handleReturnClick(row.borrowID)}
+                              >
+                                ส่งคืน
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )
                 )}
               </TableBody>
             </Table>
           </TableContainer>
 
+          {/* ส่วนแนบรูป และยืนยันการคืน (คอมเมนต์ออกตามที่ต้องการ) */}
+          {/*
           <Stack spacing={2} direction="row" alignItems="center" sx={{ mt: 4 }}>
-            <label>
-              <Input
-                type="file"
-                accept="image/*"
-                sx={{ display: "none" }}
-                onChange={handleReturnImgChange}
-              />
-              <Button variant="outlined" component="span">
-                แนบรูปหลักฐานการคืน
-              </Button>
-            </label>
-            {returnImgPreview && (
-              <Box
-                component="img"
-                src={returnImgPreview}
-                alt="return"
-                sx={{
-                  width: 60,
-                  height: 40,
-                  objectFit: "cover",
-                  ml: 2,
-                  borderRadius: 1,
-                  border: "1px solid #ccc",
-                }}
-              />
-            )}
+            ...เดิม...
           </Stack>
+          */}
         </Box>
 
         <Snackbar

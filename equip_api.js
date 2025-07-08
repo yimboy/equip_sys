@@ -402,9 +402,9 @@ app.get('/api/history-bring', (req, res) => {
 
 function getStatusText(statusID) {
   switch (statusID) {
-    case 0: return "กำลังตรวจสอบ";
-    case 1: return "ยืนยันการเบิก";
-    case 2: return "รับของเรียบร้อย";
+    case 0: return "รอตรวจสอบ";
+    case 1: return "อนุมัติ";
+    case 2: return "ไม่อนุมติ";
     default: return "ไม่ทราบสถานะ";
   }
 }
@@ -482,14 +482,48 @@ app.get('/api/history-borrow', (req, res) => {
 // ฟังก์ชันแปลงสถานะยืม-คืนเป็นภาษาไทย
 function getBorrowStatusText(statusID) {
   switch (statusID) {
-    case 0: return "กำลังตรวจสอบ";
-    case 1: return "ยืนยันการยืม";
-    case 2: return "รับของเรียบร้อย";
-    case 3: return "คืนของแล้ว";
+    case 0: return "รอตรวจสอบ";
+    case 1: return "อนุมัติ";
+    case 2: return "ไม่อนุมัติ";
+    case 3: return "ส่งคืนเเล้ว";
     default: return "ไม่ทราบสถานะ";
   }
 }
 
+//API อัพเดทสถานะคืน
+app.post('/api/update-status', (req, res) => {
+  const { borrowID, statusID } = req.body;
+
+  if (borrowID === undefined || statusID === undefined) {
+    return res.json({
+      status: false,
+      message: 'ข้อมูลไม่ครบถ้วน',
+    });
+  }
+
+  const sql = 'UPDATE borrow SET statusID = ? WHERE borrowID = ?';
+  db.query(sql, [statusID, borrowID], (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.json({
+        status: false,
+        message: 'เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล',
+      });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.json({
+        status: false,
+        message: 'ไม่พบ borrowID ที่ต้องการอัพเดต',
+      });
+    }
+
+    res.json({
+      status: true,
+      message: 'อัพเดตสถานะเรียบร้อย',
+    });
+  });
+});
 
 
 

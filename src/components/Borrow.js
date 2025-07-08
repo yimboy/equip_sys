@@ -183,7 +183,7 @@ function Borrow() {
         {/* Header */}
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
-            <IconButton color="inherit" edge="start" sx={{ mr: 1 }}>
+            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")} >
               <Box
                 component="img"
                 src={logo}
