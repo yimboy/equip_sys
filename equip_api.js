@@ -34,15 +34,16 @@ app.get('/', function(req, res){
 //Register
 app.post('/api/register', function(req, res){
   const { username, password, firstname, lastname } = req.body;
-  const sql = 'INSERT INTO user (username, password, firstname, lastname ) VALUES (?, ?, ?, ?)';
+  const sql = 'INSERT INTO user (username, password, firstname, lastname, roleID) VALUES (?, ?, ?, ?, ?)';
   
-  db.query(sql, [username, password, firstname, lastname], 
+  db.query(sql, [username, password, firstname, lastname, 1], 
     function(err, result) {
-    if (err) throw err;
-    res.send({ message: 'ลงทะเบียนสำเร็จ','status':true });
-}
+      if (err) throw err;
+      res.send({ message: 'ลงทะเบียนสำเร็จ', status: true });
+    }
   );
-}); 
+});
+ 
 
 //Login
 app.post('/api/login', function(req, res){
@@ -405,6 +406,8 @@ function getStatusText(statusID) {
     case 0: return "รอตรวจสอบ";
     case 1: return "อนุมัติ";
     case 2: return "ไม่อนุมติ";
+    case 3: return "ขอยกเลิก";
+    case 4: return "ยกเลิก";
     default: return "ไม่ทราบสถานะ";
   }
 }
@@ -486,9 +489,63 @@ function getBorrowStatusText(statusID) {
     case 1: return "อนุมัติ";
     case 2: return "ไม่อนุมัติ";
     case 3: return "ส่งคืนเเล้ว";
+    case 4: return "ขอยกเลิก";
+    case 5: return "ยกเลิก";
     default: return "ไม่ทราบสถานะ";
   }
 }
+
+// API ยกเลิกการเบิก-จ่าย
+app.post('/api/cancel-bring', (req, res) => {
+  const { bringID, userID } = req.body;
+
+  if (!bringID || !userID) {
+    return res.send({ status: false, message: 'Missing parameters' });
+  }
+
+  // อัปเดตสถานะเป็น "รอตรวจสอบ" (statusID = 0)
+  const sql = 'UPDATE bring SET statusID = ? WHERE bringID = ? AND userID = ?';
+
+  db.query(sql, [3, bringID, userID], (err, result) => {
+    if (err) {
+      console.error('DB Error:', err);
+      return res.send({ status: false, message: 'DB Error' });
+    }
+
+    if (result.affectedRows === 3) {
+      return res.send({ status: false, message: 'ไม่พบรายการหรือไม่มีสิทธิ์ยกเลิก' });
+    }
+
+    return res.send({ status: true });
+  });
+});
+
+
+// API ยกเลิกการยืม-คืน
+app.post('/api/cancel-borrow', (req, res) => {
+  const { borrowID, userID } = req.body;
+
+  if (!borrowID || !userID) {
+    return res.send({ status: false, message: 'Missing parameters' });
+  }
+
+  // อัปเดตสถานะเป็น "รอตรวจสอบ" (statusID = 0)
+  const sql = 'UPDATE borrow SET statusID = ? WHERE borrowID = ? AND userID = ?';
+
+  db.query(sql, [4, borrowID, userID], (err, result) => {
+    if (err) {
+      console.error('DB Error:', err);
+      return res.send({ status: false, message: 'DB Error' });
+    }
+
+    if (result.affectedRows === 4) {
+      return res.send({ status: false, message: 'ไม่พบรายการหรือไม่มีสิทธิ์ยกเลิก' });
+    }
+
+    return res.send({ status: true });
+  });
+});
+
 
 //API อัพเดทสถานะคืน
 app.post('/api/update-status', (req, res) => {

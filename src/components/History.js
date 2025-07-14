@@ -23,7 +23,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Divider,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -53,26 +52,32 @@ function History() {
   const lastname = localStorage.getItem("lastname");
   const userID = localStorage.getItem("userID");
 
-  // ฟังก์ชันช่วยแปลงวันที่ ตัดเวลาออก (แสดงแค่ yyyy-mm-dd)
   const formatDateOnly = (dateStr) => {
     if (!dateStr) return "-";
     return dateStr.split("T")[0];
   };
 
-  const getImageSrc = (imageFile) => {
-    if (!imageFile) return null;
-    if (imageFile.startsWith("data:")) return imageFile;
-    if (imageFile.startsWith("http")) return imageFile;
-    return `data:image/jpeg;base64,${imageFile}`;
-  };
-
   const loadHistory = () => {
     Promise.all([
-      fetch(`http://localhost:4000/api/history-bring?userID=${userID}`).then((res) => res.json()),
-      fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`).then((res) => res.json()),
+      fetch(`http://localhost:4000/api/history-bring?userID=${userID}`).then((res) =>
+        res.json()
+      ),
+      fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`).then((res) =>
+        res.json()
+      ),
     ])
       .then(([bringData, borrowData]) => {
-        setHistory([...bringData, ...borrowData]);
+        const bring = bringData.map((item) => ({
+          ...item,
+          id: item.bringID,
+          type: "เบิก-จ่าย",
+        }));
+        const borrow = borrowData.map((item) => ({
+          ...item,
+          id: item.borrowID,
+          type: "ยืม-คืน",
+        }));
+        setHistory([...bring, ...borrow]);
       })
       .catch(() => {
         setAlertMsg("เกิดข้อผิดพลาดในการโหลดข้อมูล");
@@ -133,12 +138,130 @@ function History() {
     setSelectedDetail(null);
   };
 
+  const handleCancel = (item) => {
+    if (!window.confirm("ยืนยันที่จะยกเลิกรายการนี้?")) return;
+
+    let url = "";
+    let bodyData = { userID };
+
+    if (item.type === "เบิก-จ่าย") {
+      url = "http://localhost:4000/api/cancel-bring";
+      bodyData.bringID = item.id;
+    } else if (item.type === "ยืม-คืน") {
+      url = "http://localhost:4000/api/cancel-borrow";
+      bodyData.borrowID = item.id;
+    } else {
+      setAlertMsg("ไม่สามารถระบุประเภทข้อมูลได้");
+      setAlertSeverity("error");
+      setOpen(true);
+      return;
+    }
+
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bodyData),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status) {
+          setAlertMsg("ยกเลิกรายการสำเร็จ และรอการตรวจสอบ");
+          setAlertSeverity("success");
+          loadHistory();
+        } else {
+          setAlertMsg(data.message || "ไม่สามารถยกเลิกได้");
+          setAlertSeverity("error");
+        }
+        setOpen(true);
+      })
+      .catch(() => {
+        setAlertMsg("เกิดข้อผิดพลาดในการยกเลิก");
+        setAlertSeverity("error");
+        setOpen(true);
+      });
+  };
+
+  // ✅ ฟังก์ชันพิมพ์ (เพิ่มชื่อผู้ใช้งาน + ตารางอุปกรณ์)
+  const handlePrint = () => {
+    if (!selectedDetail) return;
+
+    const equipmentRows = selectedDetail.details?.map(
+      (item) =>
+        `<tr>
+          <td>${item.equipmentName}</td>
+          <td style="text-align:center;">${item.amount}</td>
+        </tr>`
+    ).join("") || "<tr><td colspan='2'>ไม่มีรายการอุปกรณ์</td></tr>";
+
+    const printContent = `
+      <html>
+        <head>
+          <title>รายละเอียดรายการ</title>
+          <style>
+            body { font-family: Kanit, Arial, sans-serif; padding: 20px; }
+            h2 { margin-bottom: 20px; }
+            p { font-size: 16px; margin: 8px 0; }
+            b { font-weight: 600; }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+            }
+            th, td {
+              border: 1px solid #888;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background-color: #f0f0f0;
+            }
+          </style>
+        </head>
+        <body>
+          <h2>รายละเอียดรายการ</h2>
+          <p><b>ชื่อผู้ใช้งาน:</b> ${firstname} ${lastname}</p>
+          <p><b>วันที่ทำรายการ:</b> ${formatDateOnly(selectedDetail.date)}</p>
+          <p><b>ประเภท:</b> ${selectedDetail.type}</p>
+          <p><b>วันรับของ:</b> ${formatDateOnly(selectedDetail.receiveDate)}</p>
+          <p><b>วันรับคืน:</b> ${formatDateOnly(selectedDetail.returnDate)}</p>
+          <p><b>สถานะ:</b> ${selectedDetail.status || "-"}</p>
+
+          <h3>รายการอุปกรณ์</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>ชื่ออุปกรณ์</th>
+                <th style="text-align:center;">จำนวน</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${equipmentRows}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    printWindow.document.open();
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
-            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")} >
+            <IconButton
+              color="inherit"
+              edge="start"
+              sx={{ mr: 1 }}
+              onClick={() => navigate("/homepage")}
+            >
               <Box
                 component="img"
                 src={logo}
@@ -206,7 +329,7 @@ function History() {
                   <TableCell>วันรับของ</TableCell>
                   <TableCell>วันรับคืน</TableCell>
                   <TableCell>สถานะ</TableCell>
-                  <TableCell>รายละเอียด</TableCell>
+                  <TableCell>การจัดการ</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -225,13 +348,23 @@ function History() {
                       <TableCell>{formatDateOnly(item.returnDate)}</TableCell>
                       <TableCell>{item.status || "-"}</TableCell>
                       <TableCell>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => handleDetailOpen(item)}
-                        >
-                          รายละเอียด
-                        </Button>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => handleDetailOpen(item)}
+                          >
+                            รายละเอียด
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="error"
+                            onClick={() => handleCancel(item)}
+                          >
+                            ยกเลิก
+                          </Button>
+                        </Stack>
                       </TableCell>
                     </TableRow>
                   ))
@@ -261,45 +394,28 @@ function History() {
                 <Typography>
                   <b>สถานะ:</b> {selectedDetail.status || "-"}
                 </Typography>
-
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="subtitle1" gutterBottom>
-                  รายการอุปกรณ์
-                </Typography>
-                {selectedDetail.details && selectedDetail.details.length > 0 ? (
-                  selectedDetail.details.map((d, idx) => (
-                    <Box key={idx} sx={{ mb: 1, pl: 2 }}>
-                      <Typography>
-                        • <b>ชื่อ:</b> {d.equipmentName}
-                      </Typography>
-                      <Typography>
-                        <b>จำนวน:</b> {d.amount}
-                      </Typography>
-                      <Typography>
-                        <b>วันรับของ:</b> {formatDateOnly(d.receiveDate)}
-                      </Typography>
-                      <Typography>
-                        <b>วันรับคืน:</b> {formatDateOnly(d.returnDate)}
-                      </Typography>
-                      <Divider sx={{ my: 1 }} />
-                    </Box>
-                  ))
-                ) : (
-                  <Typography>ไม่พบรายละเอียดอุปกรณ์</Typography>
-                )}
-                {selectedDetail.imageFile && (
-                  <>
-                    <Divider sx={{ my: 2 }} />
-                    <Typography>
-                      <b>รูปบัตรประจำตัว:</b>
+                {selectedDetail.details && selectedDetail.details.length > 0 && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      รายการสินค้า
                     </Typography>
-                    <Box
-                      component="img"
-                      src={getImageSrc(selectedDetail.imageFile)}
-                      alt="idcard"
-                      sx={{ width: 200, mt: 1, borderRadius: 1, border: "1px solid #ccc" }}
-                    />
-                  </>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>ชื่ออุปกรณ์</TableCell>
+                          <TableCell>จำนวน</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {selectedDetail.details.map((item, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>{item.equipmentName}</TableCell>
+                            <TableCell>{item.amount}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Box>
                 )}
               </Box>
             )}
@@ -307,6 +423,9 @@ function History() {
           <DialogActions>
             <Button onClick={handleDetailClose} variant="contained">
               ปิด
+            </Button>
+            <Button onClick={handlePrint} variant="outlined" color="primary">
+              พิมพ์
             </Button>
           </DialogActions>
         </Dialog>
