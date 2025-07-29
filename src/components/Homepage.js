@@ -227,15 +227,26 @@ function HomePage() {
               คืนโสตทัศนูปกรณ์
             </Button>
 
-            {/* ✅ ปุ่มพิเศษ: แสดงเฉพาะ roleID = 2 หรือ 3 */}
-            {(roleID === 2 || roleID === 3) && (
+            {/* ✅ ปุ่มพิเศษ: แสดงเฉพาะ roleID = 2 หรือ 4 */}
+            {(roleID === 2 || roleID === 4) && (
               <Button
                 variant="contained"
                 color="secondary"
                 size="large"
-                onClick={() => handleProtectedClick("/approve")}
+                onClick={() => handleProtectedClick("/approvebring")}
               >
                 อนุมัติการเบิก-จ่าย
+              </Button>
+            )}
+          {/* ✅ ปุ่มพิเศษ: แสดงเฉพาะ roleID = 3 หรือ 4 */}
+            {(roleID === 3 || roleID === 4) && (
+              <Button
+                variant="contained"
+                color="secondary"
+                size="large"
+                onClick={() => handleProtectedClick("/approveborrow")}
+              >
+                อนุมัติการยืม-คืน
               </Button>
             )}
           <Button

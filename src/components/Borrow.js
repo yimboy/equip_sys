@@ -21,6 +21,7 @@ import {
   Snackbar,
   Alert,
   Input,
+  TablePagination,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -45,13 +46,20 @@ function Borrow() {
   const [alertMsg, setAlertMsg] = useState("");
   const [alertSeverity, setAlertSeverity] = useState("info");
   const [requestAmounts, setRequestAmounts] = useState({});
+  const [page, setPage] = useState(0);
+  const rowsPerPage = 10;
   const navigate = useNavigate();
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
   const lastname = localStorage.getItem("lastname");
 
-  // โหลดข้อมูลอุปกรณ์สำนักงาน typeID = 2
+  const getMinDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 2);
+    return date.toISOString().split("T")[0];
+  };
+
   const loadEquipment = () => {
     fetch("http://localhost:4000/api/equipment")
       .then((res) => res.json())
@@ -66,7 +74,6 @@ function Borrow() {
     loadEquipment();
   }, []);
 
-  // โหลดรูปโปรไฟล์
   useEffect(() => {
     if (isLoggedIn) {
       const pic = localStorage.getItem("profilePic");
@@ -82,13 +89,11 @@ function Borrow() {
   };
 
   const handleMenuClose = () => setAnchorEl(null);
-
   const handleLogout = () => {
     localStorage.clear();
     handleMenuClose();
     navigate("/login");
   };
-
   const handleProfile = () => {
     handleMenuClose();
     navigate("/profile");
@@ -130,10 +135,19 @@ function Borrow() {
       setOpen(true);
       return;
     }
+
+    const minDate = getMinDate();
+    if (selectedDate < minDate || returnDate < selectedDate) {
+      setAlertMsg("วันรับของต้องล่วงหน้าอย่างน้อย 2 วัน และวันคืนต้องไม่น้อยกว่าวันรับของ");
+      setAlertSeverity("error");
+      setOpen(true);
+      return;
+    }
+
     const userID = localStorage.getItem("userID");
     const formData = new FormData();
     formData.append("selectedDate", selectedDate);
-    formData.append("returnDate", returnDate); // เพิ่มวันรับคืน
+    formData.append("returnDate", returnDate);
     formData.append("idCardImg", idCardImg);
     formData.append("requestAmounts", JSON.stringify(requestAmounts));
 
@@ -157,7 +171,8 @@ function Borrow() {
           setIdCardPreview(null);
           loadEquipment();
           setTimeout(() => {
-            navigate("/history");
+            // เด้งไปหน้าประวัติ พร้อมแท็บยืมคืน
+            navigate("/history?tab=borrow");
           }, 1200);
         } else {
           setAlertMsg(`เกิดข้อผิดพลาด: ${data.message}`);
@@ -172,6 +187,10 @@ function Borrow() {
       });
   };
 
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
   const handleClose = (_, reason) => {
     if (reason === "clickaway") return;
     setOpen(false);
@@ -180,10 +199,14 @@ function Borrow() {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
-        {/* Header */}
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
-            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")} >
+            <IconButton
+              color="inherit"
+              edge="start"
+              sx={{ mr: 1 }}
+              onClick={() => navigate("/homepage")}
+            >
               <Box
                 component="img"
                 src={logo}
@@ -215,14 +238,6 @@ function Borrow() {
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
               onClose={handleMenuClose}
-              anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "right",
-              }}
-              transformOrigin={{
-                vertical: "top",
-                horizontal: "right",
-              }}
             >
               <MenuItem onClick={handleProfile}>จัดการข้อมูลผู้ใช้</MenuItem>
               <MenuItem onClick={handleLogout}>ออกจากระบบ</MenuItem>
@@ -230,7 +245,6 @@ function Borrow() {
           </Toolbar>
         </AppBar>
 
-        {/* Main Content */}
         <Box sx={{ maxWidth: 900, mx: "auto", mt: 6, p: 2 }}>
           <Typography variant="h5" gutterBottom>
             รายการอุปกรณ์สำนักงาน (ยืม-คืน)
@@ -239,52 +253,75 @@ function Borrow() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>ลำดับ</TableCell>
                   <TableCell>ชื่ออุปกรณ์</TableCell>
                   <TableCell>จำนวนคงเหลือ</TableCell>
+                  <TableCell>สถานะ</TableCell>
                   <TableCell>จำนวนที่ต้องการยืม</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {equipment.map((item, idx) => (
-                  <TableRow key={item.equipmentID || idx}>
-                    <TableCell>{item.equipmentID}</TableCell>
-                    <TableCell>{item.equipmentName}</TableCell>
-                    <TableCell>
-                      {Math.max(item.amount - (requestAmounts[item.equipmentID] || 0), 0)}
-                    </TableCell>
-                    <TableCell>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleDecrease(item.equipmentID)}
-                        >
-                          -
-                        </Button>
-                        <Typography>{requestAmounts[item.equipmentID] || 0}</Typography>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleIncrease(item.equipmentID)}
-                        >
-                          +
-                        </Button>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {equipment
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((item) => (
+                    <TableRow key={item.equipmentID}>
+                      <TableCell>{item.equipmentName}</TableCell>
+                      <TableCell>
+                        {Math.max(item.amount - (requestAmounts[item.equipmentID] || 0), 0)}
+                      </TableCell>
+                      <TableCell>
+                        {item.statusID === 1
+                          ? "ใช้งานได้"
+                          : item.statusID === 0
+                          ? "ชำรุด"
+                          : "ไม่ทราบสถานะ"}
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleDecrease(item.equipmentID)}
+                          >
+                            -
+                          </Button>
+                          <Typography>{requestAmounts[item.equipmentID] || 0}</Typography>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleIncrease(item.equipmentID)}
+                            disabled={(requestAmounts[item.equipmentID] || 0) >= item.amount}
+                          >
+                            +
+                          </Button>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
+            <TablePagination
+              component="div"
+              count={equipment.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              rowsPerPageOptions={[]}
+            />
           </TableContainer>
 
-          <Stack spacing={2} direction="row" alignItems="center" sx={{ mt: 4 }}>
+          <Stack
+            spacing={2}
+            direction="row"
+            alignItems="center"
+            sx={{ mt: 4, flexWrap: "wrap" }}
+          >
             <TextField
               label="วันรับของ"
               type="date"
               InputLabelProps={{ shrink: true }}
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
+              inputProps={{ min: getMinDate() }}
               sx={{ minWidth: 200 }}
             />
             <TextField
@@ -293,6 +330,7 @@ function Borrow() {
               InputLabelProps={{ shrink: true }}
               value={returnDate}
               onChange={(e) => setReturnDate(e.target.value)}
+              inputProps={{ min: selectedDate || getMinDate() }}
               sx={{ minWidth: 200 }}
             />
             <label>

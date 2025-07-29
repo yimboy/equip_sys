@@ -45,7 +45,6 @@ function Return() {
   const lastname = localStorage.getItem("lastname");
   const userID = localStorage.getItem("userID");
 
-  // โหลดประวัติยืม-คืน
   useEffect(() => {
     if (!userID) return;
     fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`)
@@ -54,7 +53,6 @@ function Return() {
       .catch(() => setHistory([]));
   }, [userID]);
 
-  // โหลดรูปโปรไฟล์
   useEffect(() => {
     if (isLoggedIn) {
       const pic = localStorage.getItem("profilePic");
@@ -70,29 +68,23 @@ function Return() {
   };
 
   const handleMenuClose = () => setAnchorEl(null);
-
   const handleLogout = () => {
     localStorage.clear();
     handleMenuClose();
     navigate("/login");
   };
-
   const handleProfile = () => {
     handleMenuClose();
     navigate("/profile");
   };
 
-  const handleReturnClick = (borrowID) => {
-    // กดปุ่ม "ส่งคืน" → เปลี่ยนสถานะเป็น "รอตรวจสอบ" (statusID = 0)
+  const handleReturnClick = (borrowID, equipmentID) => {
     fetch("http://localhost:4000/api/update-status", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        borrowID,
-        statusID: 0, // 0 = รอตรวจสอบ
-      }),
+      body: JSON.stringify({ borrowID, equipmentID, statusID: 1 }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -100,7 +92,6 @@ function Return() {
           setAlertMsg("ส่งคืนสำเร็จ → อยู่ระหว่างตรวจสอบอุปกรณ์");
           setAlertSeverity("success");
           setOpen(true);
-          // โหลดข้อมูลใหม่
           fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`)
             .then((res) => res.json())
             .then((data) => setHistory(data))
@@ -126,16 +117,10 @@ function Return() {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
-        {/* Header */}
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
-            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")} >
-              <Box
-                component="img"
-                src={logo}
-                alt="logo"
-                sx={{ width: 52, height: 52, objectFit: "contain" }}
-              />
+            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")}>
+              <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
               คืนอุปกรณ์โสตฯ
@@ -145,12 +130,7 @@ function Return() {
                 {firstname} {lastname}
               </Typography>
             )}
-            <IconButton
-              color="inherit"
-              edge="end"
-              onClick={handleUserIconClick}
-              sx={{ p: 0, ml: 1 }}
-            >
+            <IconButton color="inherit" edge="end" onClick={handleUserIconClick} sx={{ p: 0, ml: 1 }}>
               {isLoggedIn && profilePic ? (
                 <Avatar src={profilePic} sx={{ width: 36, height: 36 }} />
               ) : (
@@ -161,14 +141,8 @@ function Return() {
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
               onClose={handleMenuClose}
-              anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "right",
-              }}
-              transformOrigin={{
-                vertical: "top",
-                horizontal: "right",
-              }}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
             >
               <MenuItem onClick={handleProfile}>จัดการข้อมูลผู้ใช้</MenuItem>
               <MenuItem onClick={handleLogout}>ออกจากระบบ</MenuItem>
@@ -176,7 +150,6 @@ function Return() {
           </Toolbar>
         </AppBar>
 
-        {/* Main Content */}
         <Box sx={{ maxWidth: 1100, mx: "auto", mt: 6, p: 2 }}>
           <Typography variant="h5" gutterBottom>
             ประวัติการยืม-คืนอุปกรณ์โสตฯ
@@ -203,84 +176,61 @@ function Return() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  history
-                    // กรองเอาเฉพาะสถานะที่ยังไม่ใช่ "ส่งคืนแล้ว" (statusID !== 3)
-                    .filter((row) => row.statusID !== 3)
-                    .map((row, idx) =>
-                      row.details.map((detail, dIdx) => (
-                        <TableRow key={row.borrowID + "-" + dIdx}>
-                          <TableCell>{idx + 1}</TableCell>
-                          <TableCell>
-                            {row.date
-                              ? new Date(row.date).toLocaleDateString()
-                              : "-"}
-                          </TableCell>
-                          <TableCell>{detail.equipmentName}</TableCell>
-                          <TableCell>{detail.amount}</TableCell>
-                          <TableCell>
-                            {detail.receiveDate
-                              ? new Date(detail.receiveDate).toLocaleDateString()
-                              : "-"}
-                          </TableCell>
-                          <TableCell>
-                            {detail.returnDate
-                              ? new Date(detail.returnDate).toLocaleDateString()
-                              : "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={
-                                row.statusID === 0
-                                  ? "รอตรวจสอบ"
-                                  : row.statusID === 1
-                                  ? "อนุมัติ"
-                                  : row.statusID === 2
-                                  ? "ไม่อนุมัติ"
-                                  : row.statusID === 3
-                                  ? "ส่งคืนแล้ว"
-                                  : "ไม่ทราบสถานะ"
-                              }
-                              color={
-                                row.statusID === 0
-                                  ? "warning"
-                                  : row.statusID === 1
-                                  ? "info"
-                                  : row.statusID === 2
-                                  ? "error"
-                                  : row.statusID === 3
-                                  ? "success"
-                                  : "default"
-                              }
+                  history.flatMap((row, idx) =>
+                    row.details.map((detail, dIdx) => (
+                      <TableRow key={`${row.borrowID}-${detail.equipmentID}`}>
+                        <TableCell>{idx + 1}</TableCell>
+                        <TableCell>{row.date ? new Date(row.date).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{detail.equipmentName}</TableCell>
+                        <TableCell>{detail.amount}</TableCell>
+                        <TableCell>{detail.receiveDate ? new Date(detail.receiveDate).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{detail.returnDate ? new Date(detail.returnDate).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={
+                              detail.statusID === 0
+                                ? "อนุมัติ"
+                                : detail.statusID === 1
+                                ? "รอตรวจสอบ"
+                                : detail.statusID === 2
+                                ? "ส่งคืนสำเร็จ"
+                                : detail.statusID === 3
+                                ? "ส่งคืนไม่สำเร็จ"
+                                : "ไม่ทราบสถานะ"
+                            }
+                            color={
+                              detail.statusID === 0
+                                ? "warning"
+                                : detail.statusID === 1
+                                ? "info"
+                                : detail.statusID === 2
+                                ? "error"
+                                : detail.statusID === 3
+                                ? "success"
+                                : "default"
+                            }
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {detail.statusID !== 1 && detail.statusID !== 2 && (
+                            <Button
+                              variant="contained"
+                              color="primary"
                               size="small"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {/* แสดงปุ่มส่งคืนเฉพาะเมื่อสถานะไม่ใช่ 0 (รอตรวจสอบ) และไม่ใช่ 3 (ส่งคืนแล้ว) */}
-                            {row.statusID !== 0 && row.statusID !== 3 && (
-                              <Button
-                                variant="contained"
-                                color="primary"
-                                size="small"
-                                onClick={() => handleReturnClick(row.borrowID)}
-                              >
-                                ส่งคืน
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )
+                              onClick={() => handleReturnClick(row.borrowID, detail.equipmentID)}
+                            >
+                              ส่งคืน
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )
                 )}
               </TableBody>
             </Table>
           </TableContainer>
-
-          {/* ส่วนแนบรูป และยืนยันการคืน (คอมเมนต์ออกตามที่ต้องการ) */}
-          {/*
-          <Stack spacing={2} direction="row" alignItems="center" sx={{ mt: 4 }}>
-            ...เดิม...
-          </Stack>
-          */}
         </Box>
 
         <Snackbar

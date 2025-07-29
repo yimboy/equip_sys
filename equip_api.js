@@ -549,17 +549,17 @@ app.post('/api/cancel-borrow', (req, res) => {
 
 //API อัพเดทสถานะคืน
 app.post('/api/update-status', (req, res) => {
-  const { borrowID, statusID } = req.body;
+  const { borrowID, equipmentID, statusID } = req.body;
 
-  if (borrowID === undefined || statusID === undefined) {
+  if (!borrowID || !equipmentID || statusID === undefined) {
     return res.json({
       status: false,
       message: 'ข้อมูลไม่ครบถ้วน',
     });
   }
 
-  const sql = 'UPDATE borrow SET statusID = ? WHERE borrowID = ?';
-  db.query(sql, [statusID, borrowID], (err, result) => {
+  const sql = 'UPDATE borrowdetail SET statusID = ? WHERE borrowID = ? AND equipmentID = ?';
+  db.query(sql, [statusID, borrowID, equipmentID], (err, result) => {
     if (err) {
       console.error(err);
       return res.json({
@@ -571,16 +571,18 @@ app.post('/api/update-status', (req, res) => {
     if (result.affectedRows === 0) {
       return res.json({
         status: false,
-        message: 'ไม่พบ borrowID ที่ต้องการอัพเดต',
+        message: 'ไม่พบรายการที่ต้องการอัปเดต',
       });
     }
 
     res.json({
       status: true,
-      message: 'อัพเดตสถานะเรียบร้อย',
+      message: 'อัปเดตสถานะเรียบร้อย',
     });
   });
 });
+
+
 
 
 

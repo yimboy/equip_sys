@@ -26,7 +26,7 @@ import {
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom"; // ✅ เพิ่ม useLocation
 import logo from "../assets/logo.png";
 
 const theme = createTheme({
@@ -36,16 +36,23 @@ const theme = createTheme({
 });
 
 function History() {
+  const navigate = useNavigate();
+  const location = useLocation(); // ✅ ใช้ location
+  const queryParams = new URLSearchParams(location.search);
+  const tabParam = queryParams.get("tab");
+
   const [anchorEl, setAnchorEl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const [history, setHistory] = useState([]);
   const [open, setOpen] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertSeverity, setAlertSeverity] = useState("info");
-  const [filterType, setFilterType] = useState("bring");
+
+  // ✅ ตั้งค่า default จาก query param
+  const [filterType, setFilterType] = useState(tabParam === "borrow" ? "borrow" : "bring");
+
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
-  const navigate = useNavigate();
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
@@ -59,12 +66,8 @@ function History() {
 
   const loadHistory = () => {
     Promise.all([
-      fetch(`http://localhost:4000/api/history-bring?userID=${userID}`).then((res) =>
-        res.json()
-      ),
-      fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`).then((res) =>
-        res.json()
-      ),
+      fetch(`http://localhost:4000/api/history-bring?userID=${userID}`).then((res) => res.json()),
+      fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`).then((res) => res.json()),
     ])
       .then(([bringData, borrowData]) => {
         const bring = bringData.map((item) => ({
@@ -98,6 +101,13 @@ function History() {
       setProfilePic(null);
     }
   }, [isLoggedIn]);
+
+  // ✅ อัปเดต filterType หาก query เปลี่ยน
+  useEffect(() => {
+    if (tabParam === "borrow" || tabParam === "bring") {
+      setFilterType(tabParam);
+    }
+  }, [tabParam]);
 
   const handleUserIconClick = (event) => {
     if (!isLoggedIn) navigate("/login");
@@ -181,7 +191,6 @@ function History() {
       });
   };
 
-  // ✅ ฟังก์ชันพิมพ์ (เพิ่มชื่อผู้ใช้งาน + ตารางอุปกรณ์)
   const handlePrint = () => {
     if (!selectedDetail) return;
 
@@ -256,18 +265,8 @@ function History() {
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
-            <IconButton
-              color="inherit"
-              edge="start"
-              sx={{ mr: 1 }}
-              onClick={() => navigate("/homepage")}
-            >
-              <Box
-                component="img"
-                src={logo}
-                alt="logo"
-                sx={{ width: 52, height: 52, objectFit: "contain" }}
-              />
+            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")}>
+              <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
               ประวัติการเบิก-ยืมอุปกรณ์
@@ -277,25 +276,14 @@ function History() {
                 {firstname} {lastname}
               </Typography>
             )}
-            <IconButton
-              color="inherit"
-              edge="end"
-              onClick={handleUserIconClick}
-              sx={{ p: 0, ml: 1 }}
-            >
+            <IconButton color="inherit" edge="end" onClick={handleUserIconClick} sx={{ p: 0, ml: 1 }}>
               {isLoggedIn && profilePic ? (
                 <Avatar src={profilePic} sx={{ width: 36, height: 36 }} />
               ) : (
                 <AccountCircleIcon sx={{ width: 36, height: 36 }} />
               )}
             </IconButton>
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-              transformOrigin={{ vertical: "top", horizontal: "right" }}
-            >
+            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
               <MenuItem onClick={handleProfile}>จัดการข้อมูลผู้ใช้</MenuItem>
               <MenuItem onClick={handleLogout}>ออกจากระบบ</MenuItem>
             </Menu>
@@ -307,16 +295,10 @@ function History() {
             ประวัติการเบิก-ยืมอุปกรณ์ของคุณ
           </Typography>
           <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-            <Button
-              variant={filterType === "bring" ? "contained" : "outlined"}
-              onClick={() => setFilterType("bring")}
-            >
+            <Button variant={filterType === "bring" ? "contained" : "outlined"} onClick={() => setFilterType("bring")}>
               เบิก-จ่าย
             </Button>
-            <Button
-              variant={filterType === "borrow" ? "contained" : "outlined"}
-              onClick={() => setFilterType("borrow")}
-            >
+            <Button variant={filterType === "borrow" ? "contained" : "outlined"} onClick={() => setFilterType("borrow")}>
               ยืม-คืน
             </Button>
           </Stack>
@@ -335,9 +317,7 @@ function History() {
               <TableBody>
                 {filteredHistory.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      ไม่พบข้อมูล
-                    </TableCell>
+                    <TableCell colSpan={6} align="center">ไม่พบข้อมูล</TableCell>
                   </TableRow>
                 ) : (
                   filteredHistory.map((item, idx) => (
@@ -349,19 +329,10 @@ function History() {
                       <TableCell>{item.status || "-"}</TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => handleDetailOpen(item)}
-                          >
+                          <Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>
                             รายละเอียด
                           </Button>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color="error"
-                            onClick={() => handleCancel(item)}
-                          >
+                          <Button size="small" variant="contained" color="error" onClick={() => handleCancel(item)}>
                             ยกเลิก
                           </Button>
                         </Stack>
@@ -379,26 +350,14 @@ function History() {
           <DialogContent dividers>
             {selectedDetail && (
               <Box>
-                <Typography>
-                  <b>วันที่ทำรายการ:</b> {formatDateOnly(selectedDetail.date)}
-                </Typography>
-                <Typography>
-                  <b>ประเภท:</b> {selectedDetail.type}
-                </Typography>
-                <Typography>
-                  <b>วันรับของ:</b> {formatDateOnly(selectedDetail.receiveDate)}
-                </Typography>
-                <Typography>
-                  <b>วันรับคืน:</b> {formatDateOnly(selectedDetail.returnDate)}
-                </Typography>
-                <Typography>
-                  <b>สถานะ:</b> {selectedDetail.status || "-"}
-                </Typography>
+                <Typography><b>วันที่ทำรายการ:</b> {formatDateOnly(selectedDetail.date)}</Typography>
+                <Typography><b>ประเภท:</b> {selectedDetail.type}</Typography>
+                <Typography><b>วันรับของ:</b> {formatDateOnly(selectedDetail.receiveDate)}</Typography>
+                <Typography><b>วันรับคืน:</b> {formatDateOnly(selectedDetail.returnDate)}</Typography>
+                <Typography><b>สถานะ:</b> {selectedDetail.status || "-"}</Typography>
                 {selectedDetail.details && selectedDetail.details.length > 0 && (
                   <Box sx={{ mt: 2 }}>
-                    <Typography variant="subtitle1" gutterBottom>
-                      รายการสินค้า
-                    </Typography>
+                    <Typography variant="subtitle1" gutterBottom>รายการสินค้า</Typography>
                     <Table size="small">
                       <TableHead>
                         <TableRow>
@@ -421,12 +380,8 @@ function History() {
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleDetailClose} variant="contained">
-              ปิด
-            </Button>
-            <Button onClick={handlePrint} variant="outlined" color="primary">
-              พิมพ์
-            </Button>
+            <Button onClick={handleDetailClose} variant="contained">ปิด</Button>
+            <Button onClick={handlePrint} variant="outlined" color="primary">พิมพ์</Button>
           </DialogActions>
         </Dialog>
 
@@ -436,9 +391,7 @@ function History() {
           onClose={handleClose}
           anchorOrigin={{ vertical: "top", horizontal: "center" }}
         >
-          <Alert severity={alertSeverity} sx={{ width: "100%" }}>
-            {alertMsg}
-          </Alert>
+          <Alert severity={alertSeverity} sx={{ width: "100%" }}>{alertMsg}</Alert>
         </Snackbar>
       </Box>
     </ThemeProvider>

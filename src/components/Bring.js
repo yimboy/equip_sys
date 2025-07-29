@@ -21,6 +21,7 @@ import {
   Snackbar,
   Alert,
   Input,
+  TablePagination,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -44,18 +45,18 @@ function Bring() {
   const [alertMsg, setAlertMsg] = useState("");
   const [alertSeverity, setAlertSeverity] = useState("info");
   const [requestAmounts, setRequestAmounts] = useState({});
+  const [page, setPage] = useState(0);
+  const rowsPerPage = 10;
   const navigate = useNavigate();
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
   const lastname = localStorage.getItem("lastname");
 
-  // โหลดข้อมูลอุปกรณ์สำนักงาน
   const loadEquipment = () => {
     fetch("http://localhost:4000/api/equipment")
       .then((res) => res.json())
       .then((data) => {
-        // กรองเฉพาะอุปกรณ์ที่ typeID === 1
         const filtered = data.filter((item) => item.typeID === 1);
         setEquipment(filtered);
       })
@@ -66,7 +67,6 @@ function Bring() {
     loadEquipment();
   }, []);
 
-  // โหลดรูปโปรไฟล์
   useEffect(() => {
     if (isLoggedIn) {
       const pic = localStorage.getItem("profilePic");
@@ -130,8 +130,7 @@ function Bring() {
       setOpen(true);
       return;
     }
-  const userID = localStorage.getItem("userID");
-    // สร้าง FormData
+    const userID = localStorage.getItem("userID");
     const formData = new FormData();
     formData.append("selectedDate", selectedDate);
     formData.append("idCardImg", idCardImg);
@@ -139,11 +138,11 @@ function Bring() {
 
     fetch("http://localhost:4000/api/bring-confirm", {
       method: "POST",
-     headers: {
-      "x-user-id": userID, // ส่ง userID ใน header
-    },
-    body: formData,
-  })
+      headers: {
+        "x-user-id": userID,
+      },
+      body: formData,
+    })
       .then((res) => res.json())
       .then((data) => {
         if (data.status) {
@@ -154,10 +153,10 @@ function Bring() {
           setSelectedDate("");
           setIdCardImg(null);
           setIdCardPreview(null);
-          loadEquipment(); // โหลดข้อมูลใหม่
+          loadEquipment();
           setTimeout(() => {
             navigate("/history");
-          }, 1200); // รอให้แสดง snackbar สักครู่ก่อนเปลี่ยนหน้า
+          }, 1200);
         } else {
           setAlertMsg(`เกิดข้อผิดพลาด: ${data.message}`);
           setAlertSeverity("error");
@@ -176,19 +175,17 @@ function Bring() {
     setOpen(false);
   };
 
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
-        {/* Header */}
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
-            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")} >
-              <Box
-                component="img"
-                src={logo}
-                alt="logo"
-                sx={{ width: 52, height: 52, objectFit: "contain" }}
-              />
+            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")}>
+              <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
               เบิก-จ่ายอุปกรณ์สำนักงาน
@@ -198,38 +195,20 @@ function Bring() {
                 {firstname} {lastname}
               </Typography>
             )}
-            <IconButton
-              color="inherit"
-              edge="end"
-              onClick={handleUserIconClick}
-              sx={{ p: 0, ml: 1 }}
-            >
+            <IconButton color="inherit" edge="end" onClick={handleUserIconClick} sx={{ p: 0, ml: 1 }}>
               {isLoggedIn && profilePic ? (
                 <Avatar src={profilePic} sx={{ width: 36, height: 36 }} />
               ) : (
                 <AccountCircleIcon sx={{ width: 36, height: 36 }} />
               )}
             </IconButton>
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-              anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "right",
-              }}
-              transformOrigin={{
-                vertical: "top",
-                horizontal: "right",
-              }}
-            >
+            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
               <MenuItem onClick={handleProfile}>จัดการข้อมูลผู้ใช้</MenuItem>
               <MenuItem onClick={handleLogout}>ออกจากระบบ</MenuItem>
             </Menu>
           </Toolbar>
         </AppBar>
 
-        {/* Main Content */}
         <Box sx={{ maxWidth: 900, mx: "auto", mt: 6, p: 2 }}>
           <Typography variant="h5" gutterBottom>
             รายการอุปกรณ์สำนักงาน
@@ -238,27 +217,19 @@ function Bring() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>ลำดับ</TableCell>
                   <TableCell>ชื่ออุปกรณ์</TableCell>
                   <TableCell>จำนวนคงเหลือ</TableCell>
                   <TableCell>จำนวนที่ต้องการเบิก</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {equipment.map((item, idx) => (
-                  <TableRow key={item.equipmentID || idx}>
-                    <TableCell>{item.equipmentID}</TableCell>
+                {equipment.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((item) => (
+                  <TableRow key={item.equipmentID}>
                     <TableCell>{item.equipmentName}</TableCell>
-                    <TableCell>
-                      {Math.max(item.amount - (requestAmounts[item.equipmentID] || 0), 0)}
-                    </TableCell>
+                    <TableCell>{Math.max(item.amount - (requestAmounts[item.equipmentID] || 0), 0)}</TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleDecrease(item.equipmentID)}
-                        >
+                        <Button variant="outlined" size="small" onClick={() => handleDecrease(item.equipmentID)}>
                           -
                         </Button>
                         <Typography>{requestAmounts[item.equipmentID] || 0}</Typography>
@@ -266,6 +237,7 @@ function Bring() {
                           variant="outlined"
                           size="small"
                           onClick={() => handleIncrease(item.equipmentID)}
+                          disabled={(requestAmounts[item.equipmentID] || 0) >= item.amount}
                         >
                           +
                         </Button>
@@ -275,6 +247,14 @@ function Bring() {
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              component="div"
+              count={equipment.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              rowsPerPageOptions={[]}
+            />
           </TableContainer>
 
           <Stack spacing={2} direction="row" alignItems="center" sx={{ mt: 4 }}>
@@ -284,15 +264,11 @@ function Bring() {
               InputLabelProps={{ shrink: true }}
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
+              inputProps={{ min: new Date().toISOString().split("T")[0] }}
               sx={{ minWidth: 200 }}
             />
             <label>
-              <Input
-                type="file"
-                accept="image/*"
-                sx={{ display: "none" }}
-                onChange={handleIdCardChange}
-              />
+              <Input type="file" accept="image/*" sx={{ display: "none" }} onChange={handleIdCardChange} />
               <Button variant="outlined" component="span">
                 แนบรูปบัตรประจำตัว
               </Button>
@@ -302,33 +278,16 @@ function Bring() {
                 component="img"
                 src={idCardPreview}
                 alt="idcard"
-                sx={{
-                  width: 60,
-                  height: 40,
-                  objectFit: "cover",
-                  ml: 2,
-                  borderRadius: 1,
-                  border: "1px solid #ccc",
-                }}
+                sx={{ width: 60, height: 40, objectFit: "cover", ml: 2, borderRadius: 1, border: "1px solid #ccc" }}
               />
             )}
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleConfirm}
-              sx={{ ml: 2 }}
-            >
+            <Button variant="contained" color="primary" onClick={handleConfirm} sx={{ ml: 2 }}>
               ยืนยัน
             </Button>
           </Stack>
         </Box>
 
-        <Snackbar
-          open={open}
-          autoHideDuration={2500}
-          onClose={handleClose}
-          anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        >
+        <Snackbar open={open} autoHideDuration={2500} onClose={handleClose} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
           <Alert severity={alertSeverity} sx={{ width: "100%" }}>
             {alertMsg}
           </Alert>
