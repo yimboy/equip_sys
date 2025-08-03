@@ -48,6 +48,7 @@ function Bring() {
   const [page, setPage] = useState(0);
   const rowsPerPage = 10;
   const navigate = useNavigate();
+  const roleID = Number(localStorage.getItem("roleID")); // ✅ เพิ่ม roleID
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
@@ -213,6 +214,20 @@ function Bring() {
           <Typography variant="h5" gutterBottom>
             รายการอุปกรณ์สำนักงาน
           </Typography>
+
+          {/* ✅ ปุ่มแก้ไขอุปกรณ์ สำหรับ roleID === 2 */}
+          {roleID === 2 && (
+            <Box sx={{ textAlign: "right", mb: 2 }}>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => navigate("/edit-bring")}
+              >
+                แก้ไขอุปกรณ์
+              </Button>
+            </Box>
+          )}
+
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -287,7 +302,12 @@ function Bring() {
           </Stack>
         </Box>
 
-        <Snackbar open={open} autoHideDuration={2500} onClose={handleClose} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Snackbar
+          open={open}
+          autoHideDuration={2500}
+          onClose={handleClose}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
           <Alert severity={alertSeverity} sx={{ width: "100%" }}>
             {alertMsg}
           </Alert>

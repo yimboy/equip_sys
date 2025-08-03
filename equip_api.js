@@ -567,9 +567,93 @@ app.post("/api/update-all-status", (req, res) => {
   });
 });
 
+//api แก้ไขชื่อเเละจำนวนอุปกรณ์ที่เบิก-จ่าย(จนท.กจห.)
+app.put('/api/edit-equipment/:equipmentID', (req, res) => {
+  const roleID = Number(req.headers['x-user-role']);
+  if (roleID !== 2) {
+    return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
+  }
 
+  const equipmentID = req.params.equipmentID;
+  const { equipmentName, amount } = req.body;
 
+  if (!equipmentName || typeof amount !== 'number' || amount < 0) {
+    return res.status(400).json({ status: false, message: "ข้อมูลไม่ถูกต้อง" });
+  }
 
+  const sql = `
+    UPDATE equipments
+    SET equipmentName = ?, amount = ?
+    WHERE equipmentID = ?
+  `;
+
+  db.query(sql, [equipmentName, amount, equipmentID], (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในฐานข้อมูล" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: false, message: "ไม่พบอุปกรณ์ที่ต้องการแก้ไข" });
+    }
+
+    res.json({ status: true, message: "แก้ไขอุปกรณ์สำเร็จ" });
+  });
+});
+
+//api เพิ่มอุปกรณ์ใหม่(จนท.กจห.)
+app.post('/api/add-equipment', (req, res) => {
+  const roleID = Number(req.headers['x-user-role']);
+  if (roleID !== 2) {
+    return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
+  }
+
+  const { equipmentName, amount } = req.body;
+
+  if (!equipmentName || typeof amount !== 'number' || amount < 0) {
+    return res.status(400).json({ status: false, message: "ข้อมูลไม่ถูกต้อง" });
+  }
+
+  const equipmenttype = 1; // ✅ บังคับเป็น 1 เสมอ
+
+  const sql = `
+    INSERT INTO equipments (equipmentName, amount, equipmenttype)
+    VALUES (?, ?, ?)
+  `;
+
+  db.query(sql, [equipmentName, amount, equipmenttype], (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในฐานข้อมูล" });
+    }
+
+    res.json({ status: true, message: "เพิ่มอุปกรณ์ใหม่สำเร็จ", equipmentID: result.insertId });
+  });
+});
+
+// API ลบอุปกรณ์สำนักงาน(จนท.กจห.)
+app.delete('/api/delete-equipment/:equipmentID', (req, res) => {
+  const roleID = Number(req.headers['x-user-role']);
+  if (roleID !== 2) {
+    return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
+  }
+
+  const equipmentID = req.params.equipmentID;
+  const sql = `DELETE FROM equipments WHERE equipmentID = ?`;
+
+  db.query(sql, [equipmentID], (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในฐานข้อมูล" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: false, message: "ไม่พบอุปกรณ์ที่ต้องการลบ" });
+    }
+
+    res.json({ status: true, message: "ลบอุปกรณ์สำเร็จ" });
+  });
+});
 
 
 //Web sever
