@@ -197,7 +197,7 @@ app.post('/api/bring-confirm', upload.single('idCardImg'), (req, res) => {
     })
     .then(() => {
       // บันทึก bring
-      const bringDate = new Date();
+      const bringDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
       const imagePath = `/uploads/${idCardImg.filename}`;
       const insertBringSql = `
         INSERT INTO bring (userID, bringDate, receiveDate, imageFile)
@@ -346,8 +346,8 @@ app.get('/api/history-bring', (req, res) => {
   const sql = `
     SELECT 
       b.bringID,
-      b.bringDate AS date,
-      b.receiveDate,
+      DATE_FORMAT(b.bringDate, '%Y-%m-%d') AS date,
+      DATE_FORMAT(b.receiveDate, '%Y-%m-%d') AS receiveDate,
       bd.equipmentID,
       e.equipmentName,
       bd.amount,
@@ -426,9 +426,9 @@ app.get('/api/history-borrow', (req, res) => {
   const sql = `
     SELECT 
       bo.borrowID,
-      bo.borrowDate AS date,
-      bo.receiveDate,
-      bo.returnDate,
+      DATE_FORMAT(bo.borrowDate, '%Y-%m-%d') AS date,
+      DATE_FORMAT(bo.receiveDate, '%Y-%m-%d') AS receiveDate,
+      DATE_FORMAT(bo.returnDate, '%Y-%m-%d') AS returnDate,
       bd.equipmentID,
       e.equipmentName,
       bd.amount,

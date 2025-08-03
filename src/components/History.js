@@ -23,13 +23,12 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Chip,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
-import { useNavigate, useLocation } from "react-router-dom"; // ✅ เพิ่ม useLocation
+import { useNavigate, useLocation } from "react-router-dom";
 import logo from "../assets/logo.png";
-import { Chip } from "@mui/material"; 
-
 
 const theme = createTheme({
   typography: {
@@ -39,7 +38,7 @@ const theme = createTheme({
 
 function History() {
   const navigate = useNavigate();
-  const location = useLocation(); // ✅ ใช้ location
+  const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const tabParam = queryParams.get("tab");
 
@@ -49,10 +48,7 @@ function History() {
   const [open, setOpen] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertSeverity, setAlertSeverity] = useState("info");
-
-  // ✅ ตั้งค่า default จาก query param
   const [filterType, setFilterType] = useState(tabParam === "borrow" ? "borrow" : "bring");
-
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
 
@@ -62,22 +58,22 @@ function History() {
   const userID = localStorage.getItem("userID");
 
   const getStatusColor = (statusID) => {
-  switch (statusID) {
-    case 0: return "default";  // รอตรวจสอบ
-    case 1: return "success";  // อนุมัติ
-    case 2: return "error";    // ไม่อนุมัติ
-    case 3: return "success";  // ขอยกเลิก
-    case 4: return "error";    // ยกเลิก
-    case 5: return "warning";  // รออนุมัติยกเลิก
-    case 6: return "info";     // ส่งคืนแล้ว
-    default: return "default";
-  }
-};
+    switch (statusID) {
+      case 0: return "default";
+      case 1: return "success";
+      case 2: return "error";
+      case 3: return "success";
+      case 4: return "error";
+      case 5: return "warning";
+      case 6: return "info";
+      default: return "default";
+    }
+  };
 
-
+  // ✅ แก้ timezone เพี้ยน
   const formatDateOnly = (dateStr) => {
     if (!dateStr) return "-";
-    return dateStr.split("T")[0];
+    return dateStr.slice(0, 10);  // ดึงแค่ YYYY-MM-DD
   };
 
   const loadHistory = () => {
@@ -89,7 +85,7 @@ function History() {
         const bring = bringData.map((item) => ({
           ...item,
           id: item.bringID,
-          statusID: item.statusID, // ✅ เพิ่มตรงนี้
+          statusID: item.statusID,
           type: "เบิก-จ่าย",
         }));
         const borrow = borrowData.map((item) => ({
@@ -119,7 +115,6 @@ function History() {
     }
   }, [isLoggedIn]);
 
-  // ✅ อัปเดต filterType หาก query เปลี่ยน
   useEffect(() => {
     if (tabParam === "borrow" || tabParam === "bring") {
       setFilterType(tabParam);
@@ -177,11 +172,6 @@ function History() {
     } else if (item.type === "ยืม-คืน") {
       url = "http://localhost:4000/api/cancel-borrow";
       bodyData.borrowID = item.id;
-    } else {
-      setAlertMsg("ไม่สามารถระบุประเภทข้อมูลได้");
-      setAlertSeverity("error");
-      setOpen(true);
-      return;
     }
 
     fetch(url, {
@@ -344,15 +334,14 @@ function History() {
                       <TableCell>{formatDateOnly(item.receiveDate)}</TableCell>
                       <TableCell>{formatDateOnly(item.returnDate)}</TableCell>
                       <TableCell>
-                      <Chip
-                       label={item.status || "-"}
-                       color={getStatusColor(item.statusID)}
-                       sx={{ fontWeight: "bold" }}
-                       variant="contained"
-                       size="small"
-                      />      
+                        <Chip
+                          label={item.status || "-"}
+                          color={getStatusColor(item.statusID)}
+                          sx={{ fontWeight: "bold" }}
+                          variant="contained"
+                          size="small"
+                        />
                       </TableCell>
-
                       <TableCell>
                         <Stack direction="row" spacing={1}>
                           <Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>
@@ -381,7 +370,7 @@ function History() {
                 <Typography><b>วันรับของ:</b> {formatDateOnly(selectedDetail.receiveDate)}</Typography>
                 <Typography><b>วันรับคืน:</b> {formatDateOnly(selectedDetail.returnDate)}</Typography>
                 <Typography><b>สถานะ:</b> {selectedDetail.status || "-"}</Typography>
-                {selectedDetail.details && selectedDetail.details.length > 0 && (
+                {selectedDetail.details?.length > 0 && (
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="subtitle1" gutterBottom>รายการสินค้า</Typography>
                     <Table size="small">
