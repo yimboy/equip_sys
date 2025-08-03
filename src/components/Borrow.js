@@ -27,6 +27,7 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
+import { Chip } from "@mui/material"; // อย่าลืม import Chip ด้านบนด้วย
 
 const theme = createTheme({
   typography: {
@@ -269,11 +270,13 @@ function Borrow() {
                         {Math.max(item.amount - (requestAmounts[item.equipmentID] || 0), 0)}
                       </TableCell>
                       <TableCell>
-                        {item.statusID === 1
-                          ? "ใช้งานได้"
-                          : item.statusID === 0
-                          ? "ชำรุด"
-                          : "ไม่ทราบสถานะ"}
+                        {item.statusID === 1 ? (
+                      <Chip label="ใช้งานได้" color="success" size="small" />
+                        ) : item.statusID === 0 ? (
+                      <Chip label="ชำรุด" color="error" size="small" />
+                        ) : (
+                      <Chip label="ไม่ทราบสถานะ" color="default" size="small" />
+                        )}
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1} alignItems="center">

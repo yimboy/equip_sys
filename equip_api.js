@@ -377,6 +377,7 @@ app.get('/api/history-bring', (req, res) => {
           receiveDate: row.receiveDate,
           returnDate: null,          // ไม่มีวันคืนสำหรับเบิก-จ่าย
           status: getStatusText(row.statusID),
+          statusID: row.statusID, // ✅ เพิ่มบรรทัดนี้
           type: "เบิก-จ่าย",
           imageFile: row.imageFile || null,
           details: []
@@ -406,8 +407,8 @@ function getStatusText(statusID) {
     case 0: return "รอตรวจสอบ";
     case 1: return "อนุมัติ";
     case 2: return "ไม่อนุมติ";
-    case 3: return "ขอยกเลิก";
-    case 4: return "ยกเลิก";
+    case 5: return "ขอยกเลิก";
+    case 6: return "ยกเลิก";
     default: return "ไม่ทราบสถานะ";
   }
 }
@@ -456,6 +457,7 @@ app.get('/api/history-borrow', (req, res) => {
           date: row.date,
           receiveDate: row.receiveDate,
           returnDate: row.returnDate,
+          statusID: row.statusID, // ✅ เพิ่มบรรทัดนี้
           status: getBorrowStatusText(row.statusID),
           type: "ยืม-คืน",
           imageFile: row.imageFile || null,
@@ -488,9 +490,10 @@ function getBorrowStatusText(statusID) {
     case 0: return "รอตรวจสอบ";
     case 1: return "อนุมัติ";
     case 2: return "ไม่อนุมัติ";
-    case 3: return "ส่งคืนเเล้ว";
-    case 4: return "ขอยกเลิก";
-    case 5: return "ยกเลิก";
+    case 3: return "ส่งคืนสำเร็จ";
+    case 4: return "ส่งคืนไม่สำเร็จ";
+    case 5: return "ขอยกเลิก";
+    case 6: return "ยกเลิก";
     default: return "ไม่ทราบสถานะ";
   }
 }
@@ -503,16 +506,16 @@ app.post('/api/cancel-bring', (req, res) => {
     return res.send({ status: false, message: 'Missing parameters' });
   }
 
-  // อัปเดตสถานะเป็น "รอตรวจสอบ" (statusID = 0)
+  // อัปเดตสถานะเป็น "รอตรวจสอบ" (statusID = 5)
   const sql = 'UPDATE bring SET statusID = ? WHERE bringID = ? AND userID = ?';
 
-  db.query(sql, [3, bringID, userID], (err, result) => {
+  db.query(sql, [5, bringID, userID], (err, result) => {
     if (err) {
       console.error('DB Error:', err);
       return res.send({ status: false, message: 'DB Error' });
     }
 
-    if (result.affectedRows === 3) {
+    if (result.affectedRows === 5) {
       return res.send({ status: false, message: 'ไม่พบรายการหรือไม่มีสิทธิ์ยกเลิก' });
     }
 
@@ -529,16 +532,16 @@ app.post('/api/cancel-borrow', (req, res) => {
     return res.send({ status: false, message: 'Missing parameters' });
   }
 
-  // อัปเดตสถานะเป็น "รอตรวจสอบ" (statusID = 0)
+  // อัปเดตสถานะเป็น "ขอยกเลิก" (statusID = 5)
   const sql = 'UPDATE borrow SET statusID = ? WHERE borrowID = ? AND userID = ?';
 
-  db.query(sql, [4, borrowID, userID], (err, result) => {
+  db.query(sql, [5, borrowID, userID], (err, result) => {
     if (err) {
       console.error('DB Error:', err);
       return res.send({ status: false, message: 'DB Error' });
     }
 
-    if (result.affectedRows === 4) {
+    if (result.affectedRows === 0) {
       return res.send({ status: false, message: 'ไม่พบรายการหรือไม่มีสิทธิ์ยกเลิก' });
     }
 
@@ -547,40 +550,23 @@ app.post('/api/cancel-borrow', (req, res) => {
 });
 
 
+
 //API อัพเดทสถานะคืน
-app.post('/api/update-status', (req, res) => {
-  const { borrowID, equipmentID, statusID } = req.body;
+app.post("/api/update-all-status", (req, res) => {
+  const { borrowID, statusID } = req.body;
 
-  if (!borrowID || !equipmentID || statusID === undefined) {
-    return res.json({
-      status: false,
-      message: 'ข้อมูลไม่ครบถ้วน',
-    });
-  }
+  const sql = `
+    UPDATE borrow
+    SET statusID = ?
+    WHERE borrowID = ?
+  `;
 
-  const sql = 'UPDATE borrowdetail SET statusID = ? WHERE borrowID = ? AND equipmentID = ?';
-  db.query(sql, [statusID, borrowID, equipmentID], (err, result) => {
-    if (err) {
-      console.error(err);
-      return res.json({
-        status: false,
-        message: 'เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล',
-      });
-    }
-
-    if (result.affectedRows === 0) {
-      return res.json({
-        status: false,
-        message: 'ไม่พบรายการที่ต้องการอัปเดต',
-      });
-    }
-
-    res.json({
-      status: true,
-      message: 'อัปเดตสถานะเรียบร้อย',
-    });
+  db.query(sql, [statusID, borrowID], (err, result) => {
+    if (err) return res.status(500).json({ status: false, message: "DB Error" });
+    res.json({ status: true });
   });
 });
+
 
 
 

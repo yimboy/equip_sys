@@ -28,6 +28,8 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { useNavigate, useLocation } from "react-router-dom"; // ✅ เพิ่ม useLocation
 import logo from "../assets/logo.png";
+import { Chip } from "@mui/material"; 
+
 
 const theme = createTheme({
   typography: {
@@ -59,6 +61,20 @@ function History() {
   const lastname = localStorage.getItem("lastname");
   const userID = localStorage.getItem("userID");
 
+  const getStatusColor = (statusID) => {
+  switch (statusID) {
+    case 0: return "default";  // รอตรวจสอบ
+    case 1: return "success";  // อนุมัติ
+    case 2: return "error";    // ไม่อนุมัติ
+    case 3: return "success";  // ขอยกเลิก
+    case 4: return "error";    // ยกเลิก
+    case 5: return "warning";  // รออนุมัติยกเลิก
+    case 6: return "info";     // ส่งคืนแล้ว
+    default: return "default";
+  }
+};
+
+
   const formatDateOnly = (dateStr) => {
     if (!dateStr) return "-";
     return dateStr.split("T")[0];
@@ -73,6 +89,7 @@ function History() {
         const bring = bringData.map((item) => ({
           ...item,
           id: item.bringID,
+          statusID: item.statusID, // ✅ เพิ่มตรงนี้
           type: "เบิก-จ่าย",
         }));
         const borrow = borrowData.map((item) => ({
@@ -326,7 +343,16 @@ function History() {
                       <TableCell>{item.count}</TableCell>
                       <TableCell>{formatDateOnly(item.receiveDate)}</TableCell>
                       <TableCell>{formatDateOnly(item.returnDate)}</TableCell>
-                      <TableCell>{item.status || "-"}</TableCell>
+                      <TableCell>
+                      <Chip
+                       label={item.status || "-"}
+                       color={getStatusColor(item.statusID)}
+                       sx={{ fontWeight: "bold" }}
+                       variant="contained"
+                       size="small"
+                      />      
+                      </TableCell>
+
                       <TableCell>
                         <Stack direction="row" spacing={1}>
                           <Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>

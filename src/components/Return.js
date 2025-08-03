@@ -49,7 +49,10 @@ function Return() {
     if (!userID) return;
     fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`)
       .then((res) => res.json())
-      .then((data) => setHistory(data))
+      .then((data) => {
+        console.log("DATA FROM API:", data);
+        setHistory(data);
+      })
       .catch(() => setHistory([]));
   }, [userID]);
 
@@ -78,32 +81,31 @@ function Return() {
     navigate("/profile");
   };
 
-  const handleReturnClick = (borrowID, equipmentID) => {
-    fetch("http://localhost:4000/api/update-status", {
+  // ฟังก์ชันส่งคืนทั้งหมดใน borrowID นั้น ๆ
+  const handleReturnAllClick = (borrowID) => {
+    fetch("http://localhost:4000/api/update-all-status", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ borrowID, equipmentID, statusID: 1 }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ borrowID, statusID: 0 }), // 0 = รอตรวจสอบ
     })
       .then((res) => res.json())
       .then((data) => {
         if (data.status) {
-          setAlertMsg("ส่งคืนสำเร็จ → อยู่ระหว่างตรวจสอบอุปกรณ์");
+          setAlertMsg("ส่งคืนรายการทั้งหมดแล้ว → รอตรวจสอบ");
           setAlertSeverity("success");
           setOpen(true);
+          // รีเฟรชข้อมูลใหม่
           fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`)
             .then((res) => res.json())
-            .then((data) => setHistory(data))
-            .catch(() => setHistory([]));
+            .then((data) => setHistory(data));
         } else {
-          setAlertMsg(`เกิดข้อผิดพลาด: ${data.message}`);
+          setAlertMsg("เกิดข้อผิดพลาดในการส่งคืน");
           setAlertSeverity("error");
           setOpen(true);
         }
       })
       .catch(() => {
-        setAlertMsg("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+        setAlertMsg("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้");
         setAlertSeverity("error");
         setOpen(true);
       });
@@ -119,8 +121,18 @@ function Return() {
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
-            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")}>
-              <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
+            <IconButton
+              color="inherit"
+              edge="start"
+              sx={{ mr: 1 }}
+              onClick={() => navigate("/homepage")}
+            >
+              <Box
+                component="img"
+                src={logo}
+                alt="logo"
+                sx={{ width: 52, height: 52, objectFit: "contain" }}
+              />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
               คืนอุปกรณ์โสตฯ
@@ -130,7 +142,12 @@ function Return() {
                 {firstname} {lastname}
               </Typography>
             )}
-            <IconButton color="inherit" edge="end" onClick={handleUserIconClick} sx={{ p: 0, ml: 1 }}>
+            <IconButton
+              color="inherit"
+              edge="end"
+              onClick={handleUserIconClick}
+              sx={{ p: 0, ml: 1 }}
+            >
               {isLoggedIn && profilePic ? (
                 <Avatar src={profilePic} sx={{ width: 36, height: 36 }} />
               ) : (
@@ -158,7 +175,6 @@ function Return() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>ลำดับ</TableCell>
                   <TableCell>วันที่ยืม</TableCell>
                   <TableCell>ชื่ออุปกรณ์</TableCell>
                   <TableCell>จำนวน</TableCell>
@@ -171,56 +187,79 @@ function Return() {
               <TableBody>
                 {history.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
+                    <TableCell colSpan={7} align="center">
                       ไม่พบข้อมูล
                     </TableCell>
                   </TableRow>
                 ) : (
-                  history.flatMap((row, idx) =>
+                  history.flatMap((row) =>
                     row.details.map((detail, dIdx) => (
                       <TableRow key={`${row.borrowID}-${detail.equipmentID}`}>
-                        <TableCell>{idx + 1}</TableCell>
-                        <TableCell>{row.date ? new Date(row.date).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>
+                          {row.date
+                            ? new Date(row.date).toLocaleDateString()
+                            : "-"}
+                        </TableCell>
                         <TableCell>{detail.equipmentName}</TableCell>
                         <TableCell>{detail.amount}</TableCell>
-                        <TableCell>{detail.receiveDate ? new Date(detail.receiveDate).toLocaleDateString() : "-"}</TableCell>
-                        <TableCell>{detail.returnDate ? new Date(detail.returnDate).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>
+                          {detail.receiveDate
+                            ? new Date(detail.receiveDate).toLocaleDateString()
+                            : "-"}
+                        </TableCell>
+                        <TableCell>
+                          {detail.returnDate
+                            ? new Date(detail.returnDate).toLocaleDateString()
+                            : "-"}
+                        </TableCell>
                         <TableCell>
                           <Chip
                             label={
-                              detail.statusID === 0
-                                ? "อนุมัติ"
-                                : detail.statusID === 1
+                              row.statusID === 0
                                 ? "รอตรวจสอบ"
-                                : detail.statusID === 2
+                                : row.statusID === 1
+                                ? "อนุมัติ"
+                                : row.statusID === 2
+                                ? "ไม่อนุมัติ"
+                                : row.statusID === 3
                                 ? "ส่งคืนสำเร็จ"
-                                : detail.statusID === 3
+                                : row.statusID === 4
                                 ? "ส่งคืนไม่สำเร็จ"
+                                : row.statusID === 5
+                                ? "ขอยกเลิก"
+                                : row.statusID === 6
+                                ? "ยกเลิก"
                                 : "ไม่ทราบสถานะ"
                             }
                             color={
-                              detail.statusID === 0
-                                ? "warning"
-                                : detail.statusID === 1
-                                ? "info"
-                                : detail.statusID === 2
-                                ? "error"
-                                : detail.statusID === 3
+                              row.statusID === 0
+                                ? "default"
+                                : row.statusID === 1
                                 ? "success"
+                                : row.statusID === 2
+                                ? "error"
+                                : row.statusID === 3
+                                ? "success"
+                                : row.statusID === 4
+                                ? "error"
+                                : row.statusID === 5
+                                ? "warning"
+                                : row.statusID === 6
+                                ? "info"
                                 : "default"
                             }
-                            size="small"
                           />
                         </TableCell>
                         <TableCell>
-                          {detail.statusID !== 1 && detail.statusID !== 2 && (
+                          {/* แสดงปุ่ม "ส่งคืนทั้งหมด" แค่แถวแรกของแต่ละ borrowID และเมื่อสถานะอนุมัติ */}
+                          {dIdx === 0 && row.statusID === 1 && (
                             <Button
                               variant="contained"
                               color="primary"
                               size="small"
-                              onClick={() => handleReturnClick(row.borrowID, detail.equipmentID)}
+                              onClick={() => handleReturnAllClick(row.borrowID)}
                             >
-                              ส่งคืน
+                              ส่งคืนทั้งหมด
                             </Button>
                           )}
                         </TableCell>
