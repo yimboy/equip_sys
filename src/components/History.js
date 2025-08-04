@@ -343,15 +343,18 @@ function History() {
                         />
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={1}>
-                          <Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>
-                            รายละเอียด
-                          </Button>
-                          <Button size="small" variant="contained" color="error" onClick={() => handleCancel(item)}>
-                            ยกเลิก
-                          </Button>
-                        </Stack>
-                      </TableCell>
+                         <Stack direction="row" spacing={1}>
+                         <Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>
+                          รายละเอียด
+                         </Button>
+                        {item.statusID === 0 && (
+                         <Button size="small" variant="contained" color="error" onClick={() => handleCancel(item)}>
+                          ยกเลิก
+                         </Button>
+                          )}
+                         </Stack>
+                         </TableCell>
+
                     </TableRow>
                   ))
                 )}

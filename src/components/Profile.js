@@ -23,6 +23,7 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { MenuItem } from "@mui/material";
 
 const theme = createTheme({
   typography: {
@@ -160,7 +161,7 @@ const Profile = () => {
               <ArrowBackIcon />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              โปรไฟล์ลูกค้า
+              ข้อมูลผู้ใช้งาน
             </Typography>
             <AccountCircleIcon />
           </Toolbar>
@@ -245,11 +246,22 @@ const Profile = () => {
                     />
                     <TextField
                       fullWidth
+                      select
                       label="กองงาน"
                       name="division"
                       value={formData.division}
                       onChange={handleInputChange}
-                    />
+                    >
+                    <MenuItem value="">-- เลือกกองงาน --</MenuItem>
+                    <MenuItem value="กกล.บก.สปท.">กกล.บก.สปท.</MenuItem>
+                    <MenuItem value="กมศ.บก.สปท.">กมศ.บก.สปท.</MenuItem>
+                    <MenuItem value="กจห.บก.สปท.">กจห.บก.สปท.</MenuItem>
+                    <MenuItem value="กนผ.บก.สปท.">กนผ.บก.สปท.</MenuItem>
+                    <MenuItem value="กศษ.บก.สปท.">กศษ.บก.สปท.</MenuItem>
+                    <MenuItem value="กกง.บก.สปท.">กกง.บก.สปท.</MenuItem>
+                    <MenuItem value="กงป.บก.สปท.">กงป.บก.สปท.</MenuItem>
+                    <MenuItem value="กทด.บก.สปท.">กทด.บก.สปท.</MenuItem>
+                    </TextField>
                     <Box display="flex" justifyContent="center" gap={2}>
                       <Button type="submit" variant="contained" color="primary">
                         บันทึก

@@ -57,7 +57,7 @@ function Borrow() {
 
   const getMinDate = () => {
     const date = new Date();
-    date.setDate(date.getDate() + 2);
+    date.setDate(date.getDate() + 1);
     return date.toISOString().split("T")[0];
   };
 
@@ -216,7 +216,7 @@ function Borrow() {
               />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              ยืม-คืนอุปกรณ์สำนักงาน
+              ยืม-คืนโสตทัศนูปกรณ์
             </Typography>
             {isLoggedIn && (
               <Typography sx={{ mr: 1 }}>
@@ -248,7 +248,7 @@ function Borrow() {
 
         <Box sx={{ maxWidth: 900, mx: "auto", mt: 6, p: 2 }}>
           <Typography variant="h5" gutterBottom>
-            รายการอุปกรณ์สำนักงาน (ยืม-คืน)
+            รายการโสตทัศนูปกรณ์ 
           </Typography>
           <TableContainer component={Paper}>
             <Table>

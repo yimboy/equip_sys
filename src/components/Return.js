@@ -259,7 +259,7 @@ function Return() {
                               size="small"
                               onClick={() => handleReturnAllClick(row.borrowID)}
                             >
-                              ส่งคืนทั้งหมด
+                              ส่งคืน
                             </Button>
                           )}
                         </TableCell>

@@ -20,13 +20,13 @@ import {
   TextField,
   Snackbar,
   Alert,
-  Input,
   TablePagination,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 const theme = createTheme({
   typography: {
@@ -34,13 +34,10 @@ const theme = createTheme({
   },
 });
 
-function Bring() {
+function EditBring() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const [equipment, setEquipment] = useState([]);
-  const [selectedDate, setSelectedDate] = useState("");
-  const [idCardImg, setIdCardImg] = useState(null);
-  const [idCardPreview, setIdCardPreview] = useState(null);
   const [open, setOpen] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertSeverity, setAlertSeverity] = useState("info");
@@ -49,7 +46,6 @@ function Bring() {
   const rowsPerPage = 10;
   const navigate = useNavigate();
 
-  // ดึง roleID จาก localStorage
   const roleID = Number(localStorage.getItem("roleID") || 0);
   const isAdmin = roleID === 2;
 
@@ -57,22 +53,16 @@ function Bring() {
   const firstname = localStorage.getItem("firstname");
   const lastname = localStorage.getItem("lastname");
 
-  // สถานะสำหรับฟอร์มเพิ่มอุปกรณ์ใหม่
   const [newEquipName, setNewEquipName] = useState("");
   const [newEquipAmount, setNewEquipAmount] = useState("");
-
-  // สถานะสำหรับแก้ไขอุปกรณ์ (equipmentID => { equipmentName, amount })
   const [editingEquipments, setEditingEquipments] = useState({});
 
-  // โหลดอุปกรณ์
   const loadEquipment = () => {
     fetch("http://localhost:4000/api/equipment")
       .then((res) => res.json())
       .then((data) => {
         const filtered = data.filter((item) => item.typeID === 1);
         setEquipment(filtered);
-
-        // ถ้าเป็น admin กำหนดค่า editable state ตามข้อมูลโหลดมา
         if (isAdmin) {
           const editState = {};
           filtered.forEach((item) => {
@@ -118,17 +108,6 @@ function Bring() {
     navigate("/profile");
   };
 
-  const handleIdCardChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setIdCardImg(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setIdCardPreview(reader.result);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // เพิ่มฟังก์ชันแก้ไขในตาราง (admin เท่านั้น)
   const handleEditChange = (equipmentID, field, value) => {
     setEditingEquipments((prev) => ({
       ...prev,
@@ -139,7 +118,6 @@ function Bring() {
     }));
   };
 
-  // บันทึกอุปกรณ์ที่แก้ไข (update)
   const handleSaveEdit = (equipmentID) => {
     const edited = editingEquipments[equipmentID];
     if (!edited.equipmentName || edited.amount < 0) {
@@ -151,7 +129,7 @@ function Bring() {
 
     fetch(`http://localhost:4000/api/edit-equipment/${equipmentID}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" ,},
+      headers: { "Content-Type": "application/json" ,"x-user-role": roleID.toString()},
       body: JSON.stringify({
         equipmentName: edited.equipmentName,
         amount: edited.amount,
@@ -176,8 +154,37 @@ function Bring() {
         setOpen(true);
       });
   };
+const handleDeleteEquipment = (equipmentID) => {
+  if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบอุปกรณ์นี้?")) return;
 
-  // เพิ่มอุปกรณ์ใหม่
+  fetch(`http://localhost:4000/api/delete-equipment/${equipmentID}`, {
+    method: "DELETE",
+    headers: {
+      "x-user-role": roleID.toString(),
+    },
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.status) {
+        setAlertMsg("ลบอุปกรณ์สำเร็จ");
+        setAlertSeverity("success");
+        setOpen(true);
+        loadEquipment();
+      } else {
+        setAlertMsg(`เกิดข้อผิดพลาด: ${data.message}`);
+        setAlertSeverity("error");
+        setOpen(true);
+      }
+    })
+    .catch(() => {
+      setAlertMsg("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+      setAlertSeverity("error");
+      setOpen(true);
+    });
+};
+
+
+
   const handleAddNewEquipment = () => {
     if (!newEquipName.trim() || Number(newEquipAmount) < 0) {
       setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ใหม่ให้ถูกต้อง");
@@ -188,7 +195,10 @@ function Bring() {
 
     fetch("http://localhost:4000/api/add-equipment", {
       method: "POST",
-      headers: { "Content-Type": "application/json" ,"x-user-role": roleID.toString(),},
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-role": roleID.toString(),
+      },
       body: JSON.stringify({
         equipmentName: newEquipName,
         amount: Number(newEquipAmount),
@@ -236,53 +246,6 @@ function Bring() {
     }));
   };
 
-  const handleConfirm = () => {
-    if (!selectedDate || !idCardImg) {
-      setAlertMsg("กรุณากรอกวันรับของและแนบรูปบัตรประจำตัว");
-      setAlertSeverity("error");
-      setOpen(true);
-      return;
-    }
-    const userID = localStorage.getItem("userID");
-    const formData = new FormData();
-    formData.append("selectedDate", selectedDate);
-    formData.append("idCardImg", idCardImg);
-    formData.append("requestAmounts", JSON.stringify(requestAmounts));
-
-    fetch("http://localhost:4000/api/bring-confirm", {
-      method: "POST",
-      headers: {
-        "x-user-id": userID,
-      },
-      body: formData,
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.status) {
-          setAlertMsg("ส่งคำขอเบิก-จ่ายสำเร็จ");
-          setAlertSeverity("success");
-          setOpen(true);
-          setRequestAmounts({});
-          setSelectedDate("");
-          setIdCardImg(null);
-          setIdCardPreview(null);
-          loadEquipment();
-          setTimeout(() => {
-            navigate("/history");
-          }, 1200);
-        } else {
-          setAlertMsg(`เกิดข้อผิดพลาด: ${data.message}`);
-          setAlertSeverity("error");
-          setOpen(true);
-        }
-      })
-      .catch(() => {
-        setAlertMsg("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
-        setAlertSeverity("error");
-        setOpen(true);
-      });
-  };
-
   const handleClose = (_, reason) => {
     if (reason === "clickaway") return;
     setOpen(false);
@@ -297,6 +260,14 @@ function Bring() {
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
+           <IconButton
+             color="inherit"
+             onClick={() => navigate("/bring")}
+             sx={{ mr: 2 }}
+             aria-label="ย้อนกลับ"
+         >
+           <ArrowBackIcon />
+         </IconButton>
             <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")}>
               <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
             </IconButton>
@@ -327,7 +298,6 @@ function Bring() {
             รายการอุปกรณ์สำนักงาน
           </Typography>
 
-          {/* ถ้า admin ให้โชว์ฟอร์มเพิ่มอุปกรณ์ */}
           {isAdmin && (
             <Paper sx={{ p: 2, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
@@ -416,11 +386,26 @@ function Bring() {
                     </TableCell>
                     {isAdmin && (
                       <TableCell>
-                        <Button variant="contained" size="small" onClick={() => handleSaveEdit(item.equipmentID)}>
-                          บันทึก
-                        </Button>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => handleSaveEdit(item.equipmentID)}
+                          >
+                            บันทึก
+                         </Button>
+                         <Button
+                          variant="contained"
+                          color="error"
+                          size="small"
+                          onClick={() => handleDeleteEquipment(item.equipmentID)}
+                        >
+                            ลบ
+                         </Button>
+                        </Stack>
                       </TableCell>
                     )}
+
                   </TableRow>
                 ))}
               </TableBody>
@@ -434,37 +419,6 @@ function Bring() {
               rowsPerPageOptions={[]}
             />
           </TableContainer>
-
-          {!isAdmin && (
-            <Stack spacing={2} direction="row" alignItems="center" sx={{ mt: 4 }}>
-              <TextField
-                label="วันรับของ"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                inputProps={{ min: new Date().toISOString().split("T")[0] }}
-                sx={{ minWidth: 200 }}
-              />
-              <label>
-                <Input type="file" accept="image/*" sx={{ display: "none" }} onChange={handleIdCardChange} />
-                <Button variant="outlined" component="span">
-                  แนบรูปบัตรประจำตัว
-                </Button>
-              </label>
-              {idCardPreview && (
-                <Box
-                  component="img"
-                  src={idCardPreview}
-                  alt="idcard"
-                  sx={{ width: 60, height: 40, objectFit: "cover", ml: 2, borderRadius: 1, border: "1px solid #ccc" }}
-                />
-              )}
-              <Button variant="contained" color="primary" onClick={handleConfirm} sx={{ ml: 2 }}>
-                ยืนยัน
-              </Button>
-            </Stack>
-          )}
         </Box>
 
         <Snackbar open={open} autoHideDuration={2500} onClose={handleClose} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
@@ -477,4 +431,4 @@ function Bring() {
   );
 }
 
-export default Bring;
+export default EditBring;

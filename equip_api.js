@@ -614,14 +614,14 @@ app.post('/api/add-equipment', (req, res) => {
     return res.status(400).json({ status: false, message: "ข้อมูลไม่ถูกต้อง" });
   }
 
-  const equipmenttype = 1; // ✅ บังคับเป็น 1 เสมอ
+  const typeID = 1; // ✅ บังคับเป็น 1 เสมอ
 
   const sql = `
-    INSERT INTO equipments (equipmentName, amount, equipmenttype)
+    INSERT INTO equipments (equipmentName, amount, typeID)
     VALUES (?, ?, ?)
   `;
 
-  db.query(sql, [equipmentName, amount, equipmenttype], (err, result) => {
+  db.query(sql, [equipmentName, amount, typeID], (err, result) => {
     if (err) {
       console.error(err);
       return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในฐานข้อมูล" });
@@ -632,28 +632,24 @@ app.post('/api/add-equipment', (req, res) => {
 });
 
 // API ลบอุปกรณ์สำนักงาน(จนท.กจห.)
-app.delete('/api/delete-equipment/:equipmentID', (req, res) => {
+app.delete('/api/delete-equipment/:id', (req, res) => {
   const roleID = Number(req.headers['x-user-role']);
   if (roleID !== 2) {
     return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
   }
 
-  const equipmentID = req.params.equipmentID;
-  const sql = `DELETE FROM equipments WHERE equipmentID = ?`;
-
-  db.query(sql, [equipmentID], (err, result) => {
+  const { id } = req.params;
+  const sql = "DELETE FROM equipments WHERE equipmentID = ?";
+  db.query(sql, [id], (err, result) => {
     if (err) {
       console.error(err);
-      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในฐานข้อมูล" });
+      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการลบข้อมูล" });
     }
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ status: false, message: "ไม่พบอุปกรณ์ที่ต้องการลบ" });
-    }
-
     res.json({ status: true, message: "ลบอุปกรณ์สำเร็จ" });
   });
 });
+
+
 
 
 //Web sever
