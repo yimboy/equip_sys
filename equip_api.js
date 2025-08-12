@@ -342,7 +342,6 @@ app.get('/api/history-bring', (req, res) => {
     return res.json([]);
   }
 
-  // JOIN bring, bringdetail, equipments
   const sql = `
     SELECT 
       b.bringID,
@@ -352,10 +351,12 @@ app.get('/api/history-bring', (req, res) => {
       e.equipmentName,
       bd.amount,
       b.statusID,
+      s.statusName,
       b.imageFile
     FROM bring b
     JOIN bringdetail bd ON b.bringID = bd.bringID
     JOIN equipments e ON bd.equipmentID = e.equipmentID
+    LEFT JOIN status s ON b.statusID = s.statusID
     WHERE b.userID = ?
     ORDER BY b.bringDate DESC, b.bringID DESC
   `;
@@ -366,7 +367,6 @@ app.get('/api/history-bring', (req, res) => {
       return res.status(500).json({ error: "Database error" });
     }
 
-    // Group by bringID
     const bringMap = new Map();
 
     rows.forEach(row => {
@@ -375,9 +375,8 @@ app.get('/api/history-bring', (req, res) => {
           bringID: row.bringID,
           date: row.date,
           receiveDate: row.receiveDate,
-          returnDate: null,          // ไม่มีวันคืนสำหรับเบิก-จ่าย
-          status: getStatusText(row.statusID),
-          statusID: row.statusID, // ✅ เพิ่มบรรทัดนี้
+          statusID: row.statusID,
+          statusName: row.statusName || "ไม่ทราบสถานะ",
           type: "เบิก-จ่าย",
           imageFile: row.imageFile || null,
           details: []
@@ -392,7 +391,6 @@ app.get('/api/history-bring', (req, res) => {
       });
     });
 
-    // Convert to array and add count
     const result = Array.from(bringMap.values()).map(bring => ({
       ...bring,
       count: bring.details.length
@@ -402,16 +400,6 @@ app.get('/api/history-bring', (req, res) => {
   });
 });
 
-function getStatusText(statusID) {
-  switch (statusID) {
-    case 0: return "รอตรวจสอบ";
-    case 1: return "อนุมัติ";
-    case 2: return "ไม่อนุมติ";
-    case 5: return "ขอยกเลิก";
-    case 6: return "ยกเลิก";
-    default: return "ไม่ทราบสถานะ";
-  }
-}
 
 
 
@@ -422,7 +410,6 @@ app.get('/api/history-borrow', (req, res) => {
     return res.json([]);
   }
 
-  // JOIN borrow, borrowdetail, equipments
   const sql = `
     SELECT 
       bo.borrowID,
@@ -433,10 +420,12 @@ app.get('/api/history-borrow', (req, res) => {
       e.equipmentName,
       bd.amount,
       bo.statusID,
+      s.statusName,
       bo.imageFile
     FROM borrow bo
     JOIN borrowdetail bd ON bo.borrowID = bd.borrowID
     JOIN equipments e ON bd.equipmentID = e.equipmentID
+    LEFT JOIN status s ON bo.statusID = s.statusID
     WHERE bo.userID = ?
     ORDER BY bo.borrowDate DESC, bo.borrowID DESC
   `;
@@ -447,7 +436,6 @@ app.get('/api/history-borrow', (req, res) => {
       return res.status(500).json({ error: "Database error" });
     }
 
-    // Group by borrowID
     const borrowMap = new Map();
 
     rows.forEach(row => {
@@ -457,8 +445,8 @@ app.get('/api/history-borrow', (req, res) => {
           date: row.date,
           receiveDate: row.receiveDate,
           returnDate: row.returnDate,
-          statusID: row.statusID, // ✅ เพิ่มบรรทัดนี้
-          status: getBorrowStatusText(row.statusID),
+          statusID: row.statusID,
+          statusName: row.statusName || "ไม่ทราบสถานะ",
           type: "ยืม-คืน",
           imageFile: row.imageFile || null,
           details: []
@@ -474,7 +462,6 @@ app.get('/api/history-borrow', (req, res) => {
       });
     });
 
-    // Convert to array and add count
     const result = Array.from(borrowMap.values()).map(borrow => ({
       ...borrow,
       count: borrow.details.length
@@ -484,19 +471,6 @@ app.get('/api/history-borrow', (req, res) => {
   });
 });
 
-// ฟังก์ชันแปลงสถานะยืม-คืนเป็นภาษาไทย
-function getBorrowStatusText(statusID) {
-  switch (statusID) {
-    case 0: return "รอตรวจสอบ";
-    case 1: return "อนุมัติ";
-    case 2: return "ไม่อนุมัติ";
-    case 3: return "ส่งคืนสำเร็จ";
-    case 4: return "ส่งคืนไม่สำเร็จ";
-    case 5: return "ขอยกเลิก";
-    case 6: return "ยกเลิก";
-    default: return "ไม่ทราบสถานะ";
-  }
-}
 
 // API ยกเลิกการเบิก-จ่าย
 app.post('/api/cancel-bring', (req, res) => {
@@ -631,23 +605,147 @@ app.post('/api/add-equipment', (req, res) => {
   });
 });
 
-// API ลบอุปกรณ์สำนักงาน(จนท.กจห.)
-app.delete('/api/delete-equipment/:id', (req, res) => {
-  const roleID = Number(req.headers['x-user-role']);
-  if (roleID !== 2) {
-    return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
+// API ดึงรายการที่รออนุมัติ (จนท.กจห.)
+app.get("/api/bring-pending", async (req, res) => {
+  try {
+    // 1. ดึงรายการ bring ที่สถานะ = 0 (รออนุมัติ)
+    const sqlBring = `
+      SELECT 
+        b.bringID,
+        DATE_FORMAT(b.bringDate, '%Y-%m-%d') AS bringDate,
+        DATE_FORMAT(b.receiveDate, '%Y-%m-%d') AS receiveDate,
+        s.statusName,
+        u.firstname,
+        u.lastname,
+        COUNT(bd.equipmentID) AS count,
+        MAX(et.typeName) AS typeName
+      FROM bring b
+      LEFT JOIN bringdetail bd ON b.bringID = bd.bringID
+      LEFT JOIN status s ON b.statusID = s.statusID
+      LEFT JOIN user u ON b.userID = u.userID
+      LEFT JOIN equipments e ON bd.equipmentID = e.equipmentID
+      LEFT JOIN equipmenttype et ON e.typeID = et.typeID
+      WHERE b.statusID = 0
+      GROUP BY 
+        b.bringID,
+        b.bringDate,
+        b.receiveDate,
+        s.statusName,
+        u.firstname,
+        u.lastname
+      ORDER BY b.bringDate DESC
+    `;
+
+    // ใช้ Promise ห่อการ query
+    const brings = await new Promise((resolve, reject) => {
+      db.query(sqlBring, (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    // 2. ถ้าไม่มี bring ใดๆ คืนข้อมูลว่างเลย
+    if (brings.length === 0) {
+      return res.json({ status: true, data: [] });
+    }
+
+    // 3. ดึงรายการอุปกรณ์ทั้งหมดของ bringID เหล่านั้น
+    const bringIDs = brings.map(b => b.bringID);
+    const sqlItems = `
+      SELECT bd.bringID, e.equipmentName, bd.amount
+      FROM bringdetail bd
+      LEFT JOIN equipments e ON bd.equipmentID = e.equipmentID
+      WHERE bd.bringID IN (?)
+    `;
+
+    const items = await new Promise((resolve, reject) => {
+      db.query(sqlItems, [bringIDs], (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
+
+    // 4. รวม items เข้ากับ brings ตาม bringID
+    const bringMap = {};
+    brings.forEach(b => {
+      bringMap[b.bringID] = { ...b, items: [] };
+    });
+
+    items.forEach(i => {
+      if (bringMap[i.bringID]) {
+        bringMap[i.bringID].items.push({
+          equipmentName: i.equipmentName,
+          amount: i.amount,
+        });
+      }
+    });
+
+    // 5. ส่งข้อมูลกลับ client
+    res.json({ status: true, data: Object.values(bringMap) });
+  } catch (err) {
+    console.error("Error fetching bring pending:", err);
+    res.status(500).json({ status: false, message: "เกิดข้อผิดพลาด", data: [] });
+  }
+});
+
+// API อนุมัติการเบิก-จ่าย (จนท.กจห.)
+app.post("/api/approve-bring", (req, res) => {
+  const { bringID, userID } = req.body;
+
+  if (!bringID || !userID) {
+    return res.status(400).json({ status: false, message: "ข้อมูลไม่ครบถ้วน" });
   }
 
-  const { id } = req.params;
-  const sql = "DELETE FROM equipments WHERE equipmentID = ?";
-  db.query(sql, [id], (err, result) => {
+  const sql = `
+    UPDATE bring
+    SET statusID = 1
+    WHERE bringID = ? AND statusID = 0
+  `;
+
+  db.query(sql, [bringID], (err, result) => {
     if (err) {
-      console.error(err);
-      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการลบข้อมูล" });
+      console.error("Error approving bring:", err);
+      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการอนุมัติ" });
     }
-    res.json({ status: true, message: "ลบอุปกรณ์สำเร็จ" });
+
+    if (result.affectedRows === 0) {
+      return res.status(400).json({ status: false, message: "ไม่พบรายการหรือสถานะไม่ถูกต้อง" });
+    }
+
+    res.json({ status: true, message: "อนุมัติเรียบร้อย" });
   });
 });
+
+//API ไม่อนุมัติการเบิก-จ่าย (จนท.กจห.)
+app.post("/api/reject-bring", (req, res) => {
+  const { bringID } = req.body;
+
+  if (!bringID) {
+    return res.status(400).json({ status: false, message: "ข้อมูลไม่ครบถ้วน" });
+  }
+
+  // สมมติ statusID = 2 คือ ไม่อนุมัติ
+  const sql = `
+    UPDATE bring
+    SET statusID = 2
+    WHERE bringID = ?
+      AND statusID = 0
+  `;
+
+  db.query(sql, [bringID], (err, result) => {
+    if (err) {
+      console.error("Error rejecting bring:", err);
+      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการไม่อนุมัติ" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(400).json({ status: false, message: "ไม่พบรายการหรือสถานะไม่ถูกต้อง" });
+    }
+
+    res.json({ status: true, message: "ไม่อนุมัติเรียบร้อย" });
+  });
+});
+
 
 
 

@@ -86,11 +86,14 @@ function History() {
           ...item,
           id: item.bringID,
           statusID: item.statusID,
+          statusName: item.statusName,   // <-- เพิ่มตรงนี้
           type: "เบิก-จ่าย",
         }));
         const borrow = borrowData.map((item) => ({
           ...item,
           id: item.borrowID,
+          statusID: item.statusID,
+          statusName: item.statusName,   // <-- และตรงนี้
           type: "ยืม-คืน",
         }));
         setHistory([...bring, ...borrow]);
@@ -240,7 +243,7 @@ function History() {
           <p><b>ประเภท:</b> ${selectedDetail.type}</p>
           <p><b>วันรับของ:</b> ${formatDateOnly(selectedDetail.receiveDate)}</p>
           <p><b>วันรับคืน:</b> ${formatDateOnly(selectedDetail.returnDate)}</p>
-          <p><b>สถานะ:</b> ${selectedDetail.status || "-"}</p>
+          <p><b>สถานะ:</b> ${selectedDetail.statusName || "-"}</p>
 
           <h3>รายการอุปกรณ์</h3>
           <table>
@@ -335,7 +338,7 @@ function History() {
                       <TableCell>{formatDateOnly(item.returnDate)}</TableCell>
                       <TableCell>
                         <Chip
-                          label={item.status || "-"}
+                          label={item.statusName || "-"}    /* <-- แก้ตรงนี้ */
                           color={getStatusColor(item.statusID)}
                           sx={{ fontWeight: "bold" }}
                           variant="contained"
@@ -343,18 +346,17 @@ function History() {
                         />
                       </TableCell>
                       <TableCell>
-                         <Stack direction="row" spacing={1}>
-                         <Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>
-                          รายละเอียด
-                         </Button>
-                        {item.statusID === 0 && (
-                         <Button size="small" variant="contained" color="error" onClick={() => handleCancel(item)}>
-                          ยกเลิก
-                         </Button>
+                        <Stack direction="row" spacing={1}>
+                          <Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>
+                            รายละเอียด
+                          </Button>
+                          {item.statusID === 0 && (
+                            <Button size="small" variant="contained" color="error" onClick={() => handleCancel(item)}>
+                              ยกเลิก
+                            </Button>
                           )}
-                         </Stack>
-                         </TableCell>
-
+                        </Stack>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -372,8 +374,8 @@ function History() {
                 <Typography><b>ประเภท:</b> {selectedDetail.type}</Typography>
                 <Typography><b>วันรับของ:</b> {formatDateOnly(selectedDetail.receiveDate)}</Typography>
                 <Typography><b>วันรับคืน:</b> {formatDateOnly(selectedDetail.returnDate)}</Typography>
-                <Typography><b>สถานะ:</b> {selectedDetail.status || "-"}</Typography>
-                {selectedDetail.details?.length > 0 && (
+                <Typography><b>สถานะ:</b> {selectedDetail.statusName || "-"}</Typography>  {/* <-- แก้ตรงนี้ */}
+                {selectedDetail.details?.length > 0 ? (
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="subtitle1" gutterBottom>รายการสินค้า</Typography>
                     <Table size="small">
@@ -393,6 +395,8 @@ function History() {
                       </TableBody>
                     </Table>
                   </Box>
+                ) : (
+                  <Typography sx={{ mt: 2 }}>ไม่มีรายละเอียดอุปกรณ์</Typography>
                 )}
               </Box>
             )}
