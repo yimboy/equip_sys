@@ -118,10 +118,18 @@ function Bring() {
   };
 
   const handleDecrease = (id) => {
-    setRequestAmounts((prev) => ({
-      ...prev,
-      [id]: Math.max((prev[id] || 0) - 1, 0),
-    }));
+    setRequestAmounts((prev) => {
+      const current = prev[id] || 0;
+      if (current <= 1) {
+        // ❌ ถ้าเหลือ 0 → ลบออกจาก object เลย
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      } else {
+        // ✅ ลดค่าลง 1
+        return { ...prev, [id]: current - 1 };
+      }
+    });
   };
 
   const handleConfirm = () => {

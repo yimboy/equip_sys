@@ -27,7 +27,7 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
-import { Chip } from "@mui/material"; // อย่าลืม import Chip ด้านบนด้วย
+import { Chip } from "@mui/material";
 
 const theme = createTheme({
   typography: {
@@ -122,11 +122,18 @@ function Borrow() {
     });
   };
 
+  // ✅ แก้ให้ลบ key ออกถ้าเหลือ 0
   const handleDecrease = (id) => {
-    setRequestAmounts((prev) => ({
-      ...prev,
-      [id]: Math.max((prev[id] || 0) - 1, 0),
-    }));
+    setRequestAmounts((prev) => {
+      const current = prev[id] || 0;
+      if (current <= 1) {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      } else {
+        return { ...prev, [id]: current - 1 };
+      }
+    });
   };
 
   const handleConfirm = () => {
@@ -172,7 +179,6 @@ function Borrow() {
           setIdCardPreview(null);
           loadEquipment();
           setTimeout(() => {
-            // เด้งไปหน้าประวัติ พร้อมแท็บยืมคืน
             navigate("/history?tab=borrow");
           }, 1200);
         } else {
@@ -248,7 +254,7 @@ function Borrow() {
 
         <Box sx={{ maxWidth: 900, mx: "auto", mt: 6, p: 2 }}>
           <Typography variant="h5" gutterBottom>
-            รายการโสตทัศนูปกรณ์ 
+            รายการโสตทัศนูปกรณ์
           </Typography>
           <TableContainer component={Paper}>
             <Table>
@@ -271,11 +277,11 @@ function Borrow() {
                       </TableCell>
                       <TableCell>
                         {item.statusID === 1 ? (
-                      <Chip label="ใช้งานได้" color="success" size="small" />
+                          <Chip label="ใช้งานได้" color="success" size="small" />
                         ) : item.statusID === 0 ? (
-                      <Chip label="ชำรุด" color="error" size="small" />
+                          <Chip label="ชำรุด" color="error" size="small" />
                         ) : (
-                      <Chip label="ไม่ทราบสถานะ" color="default" size="small" />
+                          <Chip label="ไม่ทราบสถานะ" color="default" size="small" />
                         )}
                       </TableCell>
                       <TableCell>

@@ -118,9 +118,26 @@ function EditBring() {
     }));
   };
 
+  // 🔹 แก้ไขอุปกรณ์
   const handleSaveEdit = (equipmentID) => {
     const edited = editingEquipments[equipmentID];
-    if (!edited.equipmentName || edited.amount < 0) {
+    const trimmedName = edited.equipmentName.trim();
+
+    // 🔎 เช็คชื่อซ้ำ (ยกเว้นตัวเอง)
+    const duplicate = equipment.some(
+      (item) =>
+        item.equipmentID !== equipmentID &&
+        item.equipmentName.toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (duplicate) {
+      setAlertMsg("ไม่สามารถแก้ไขเป็นชื่อที่ซ้ำกับอุปกรณ์อื่นได้");
+      setAlertSeverity("error");
+      setOpen(true);
+      return;
+    }
+
+    if (!trimmedName || edited.amount < 0) {
       setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ให้ถูกต้อง");
       setAlertSeverity("error");
       setOpen(true);
@@ -129,9 +146,12 @@ function EditBring() {
 
     fetch(`http://localhost:4000/api/edit-equipment/${equipmentID}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" ,"x-user-role": roleID.toString()},
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-role": roleID.toString(),
+      },
       body: JSON.stringify({
-        equipmentName: edited.equipmentName,
+        equipmentName: trimmedName,
         amount: edited.amount,
       }),
     })
@@ -154,40 +174,53 @@ function EditBring() {
         setOpen(true);
       });
   };
-const handleDeleteEquipment = (equipmentID) => {
-  if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบอุปกรณ์นี้?")) return;
 
-  fetch(`http://localhost:4000/api/delete-equipment/${equipmentID}`, {
-    method: "DELETE",
-    headers: {
-      "x-user-role": roleID.toString(),
-    },
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.status) {
-        setAlertMsg("ลบอุปกรณ์สำเร็จ");
-        setAlertSeverity("success");
-        setOpen(true);
-        loadEquipment();
-      } else {
-        setAlertMsg(`เกิดข้อผิดพลาด: ${data.message}`);
+  // 🔹 ลบอุปกรณ์
+  const handleDeleteEquipment = (equipmentID) => {
+    if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบอุปกรณ์นี้?")) return;
+
+    fetch(`http://localhost:4000/api/delete-equipment/${equipmentID}`, {
+      method: "DELETE",
+      headers: {
+        "x-user-role": roleID.toString(),
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status) {
+          setAlertMsg("ลบอุปกรณ์สำเร็จ");
+          setAlertSeverity("success");
+          setOpen(true);
+          loadEquipment();
+        } else {
+          setAlertMsg(`เกิดข้อผิดพลาด: ${data.message}`);
+          setAlertSeverity("error");
+          setOpen(true);
+        }
+      })
+      .catch(() => {
+        setAlertMsg("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
         setAlertSeverity("error");
         setOpen(true);
-      }
-    })
-    .catch(() => {
-      setAlertMsg("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+      });
+  };
+
+  // 🔹 เพิ่มอุปกรณ์ใหม่
+  const handleAddNewEquipment = () => {
+    const trimmedName = newEquipName.trim();
+    if (!trimmedName || Number(newEquipAmount) < 0) {
+      setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ใหม่ให้ถูกต้อง");
       setAlertSeverity("error");
       setOpen(true);
-    });
-};
+      return;
+    }
 
-
-
-  const handleAddNewEquipment = () => {
-    if (!newEquipName.trim() || Number(newEquipAmount) < 0) {
-      setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ใหม่ให้ถูกต้อง");
+    // 🔎 เช็คชื่อซ้ำ
+    const duplicate = equipment.some(
+      (item) => item.equipmentName.toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (duplicate) {
+      setAlertMsg("ไม่สามารถเพิ่มอุปกรณ์ที่มีชื่อซ้ำกันได้");
       setAlertSeverity("error");
       setOpen(true);
       return;
@@ -200,7 +233,7 @@ const handleDeleteEquipment = (equipmentID) => {
         "x-user-role": roleID.toString(),
       },
       body: JSON.stringify({
-        equipmentName: newEquipName,
+        equipmentName: trimmedName,
         amount: Number(newEquipAmount),
         typeID: 1,
       }),
@@ -260,14 +293,14 @@ const handleDeleteEquipment = (equipmentID) => {
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
-           <IconButton
-             color="inherit"
-             onClick={() => navigate("/bring")}
-             sx={{ mr: 2 }}
-             aria-label="ย้อนกลับ"
-         >
-           <ArrowBackIcon />
-         </IconButton>
+            <IconButton
+              color="inherit"
+              onClick={() => navigate("/bring")}
+              sx={{ mr: 2 }}
+              aria-label="ย้อนกลับ"
+            >
+              <ArrowBackIcon />
+            </IconButton>
             <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")}>
               <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
             </IconButton>
@@ -305,7 +338,7 @@ const handleDeleteEquipment = (equipmentID) => {
               </Typography>
               <Stack spacing={2} direction="row" alignItems="center">
                 <TextField
-                  label="ชื่ออุปกรณ์"
+                  label="ชื่ออุปกรณ์(หน่วย)"
                   value={newEquipName}
                   onChange={(e) => setNewEquipName(e.target.value)}
                   sx={{ flexGrow: 1 }}
@@ -393,19 +426,18 @@ const handleDeleteEquipment = (equipmentID) => {
                             onClick={() => handleSaveEdit(item.equipmentID)}
                           >
                             บันทึก
-                         </Button>
-                         <Button
-                          variant="contained"
-                          color="error"
-                          size="small"
-                          onClick={() => handleDeleteEquipment(item.equipmentID)}
-                        >
+                          </Button>
+                          <Button
+                            variant="contained"
+                            color="error"
+                            size="small"
+                            onClick={() => handleDeleteEquipment(item.equipmentID)}
+                          >
                             ลบ
-                         </Button>
+                          </Button>
                         </Stack>
                       </TableCell>
                     )}
-
                   </TableRow>
                 ))}
               </TableBody>

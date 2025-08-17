@@ -480,22 +480,45 @@ app.post('/api/cancel-bring', (req, res) => {
     return res.send({ status: false, message: 'Missing parameters' });
   }
 
-  // อัปเดตสถานะเป็น "รอตรวจสอบ" (statusID = 5)
-  const sql = 'UPDATE bring SET statusID = ? WHERE bringID = ? AND userID = ?';
-
-  db.query(sql, [5, bringID, userID], (err, result) => {
+  // ดึงรายการอุปกรณ์ที่เกี่ยวข้องกับ bringID
+  const getDetailsSql = 'SELECT equipmentID, amount FROM bringdetail WHERE bringID = ?';
+  db.query(getDetailsSql, [bringID], (err, rows) => {
     if (err) {
-      console.error('DB Error:', err);
+      console.error('DB Error (get details):', err);
       return res.send({ status: false, message: 'DB Error' });
     }
 
-    if (result.affectedRows === 5) {
-      return res.send({ status: false, message: 'ไม่พบรายการหรือไม่มีสิทธิ์ยกเลิก' });
+    if (rows.length === 0) {
+      return res.send({ status: false, message: 'ไม่พบรายละเอียดการเบิก' });
     }
 
-    return res.send({ status: true });
+    // คืน stock ของอุปกรณ์แต่ละชิ้น
+    rows.forEach(item => {
+      const updateStockSql = 'UPDATE equipments SET amount = amount + ? WHERE equipmentID = ?';
+      db.query(updateStockSql, [item.amount, item.equipmentID], (err2) => {
+        if (err2) {
+          console.error('DB Error (update stock):', err2);
+        }
+      });
+    });
+
+    // อัปเดตสถานะเป็น "ยกเลิก" (เช่น statusID = 6)
+    const updateStatusSql = 'UPDATE bring SET statusID = ? WHERE bringID = ? AND userID = ?';
+    db.query(updateStatusSql, [6, bringID, userID], (err3, result) => {
+      if (err3) {
+        console.error('DB Error (update status):', err3);
+        return res.send({ status: false, message: 'DB Error' });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.send({ status: false, message: 'ไม่พบรายการหรือไม่มีสิทธิ์ยกเลิก' });
+      }
+
+      return res.send({ status: true, message: 'ยกเลิกรายการสำเร็จ และคืนค่าอุปกรณ์แล้ว' });
+    });
   });
 });
+
 
 
 // API ยกเลิกการยืม-คืน
@@ -506,22 +529,53 @@ app.post('/api/cancel-borrow', (req, res) => {
     return res.send({ status: false, message: 'Missing parameters' });
   }
 
-  // อัปเดตสถานะเป็น "ขอยกเลิก" (statusID = 5)
-  const sql = 'UPDATE borrow SET statusID = ? WHERE borrowID = ? AND userID = ?';
-
-  db.query(sql, [5, borrowID, userID], (err, result) => {
+  // ดึงรายการ borrowdetail ที่เกี่ยวข้องกับ borrowID
+  const getDetailsSql = 'SELECT equipmentID, amount FROM borrowdetail WHERE borrowID = ?';
+  db.query(getDetailsSql, [borrowID], (err, details) => {
     if (err) {
-      console.error('DB Error:', err);
+      console.error('DB Error (get details):', err);
       return res.send({ status: false, message: 'DB Error' });
     }
 
-    if (result.affectedRows === 0) {
-      return res.send({ status: false, message: 'ไม่พบรายการหรือไม่มีสิทธิ์ยกเลิก' });
+    if (details.length === 0) {
+      return res.send({ status: false, message: 'ไม่พบรายการอุปกรณ์ใน borrowdetail' });
     }
 
-    return res.send({ status: true });
+    // คืนค่า stock ของอุปกรณ์ทีละตัว
+    let updateStockPromises = details.map(item => {
+      return new Promise((resolve, reject) => {
+        const updateStockSql = 'UPDATE equipments SET amount = amount + ? WHERE equipmentID = ?';
+        db.query(updateStockSql, [item.amount, item.equipmentID], (err2) => {
+          if (err2) reject(err2);
+          else resolve();
+        });
+      });
+    });
+
+    Promise.all(updateStockPromises)
+      .then(() => {
+        // อัปเดตสถานะ borrow เป็น "ยกเลิก" (statusID = 6)
+        const updateStatusSql = 'UPDATE borrow SET statusID = ? WHERE borrowID = ? AND userID = ?';
+        db.query(updateStatusSql, [6, borrowID, userID], (err3, result) => {
+          if (err3) {
+            console.error('DB Error (update status):', err3);
+            return res.send({ status: false, message: 'DB Error' });
+          }
+
+          if (result.affectedRows === 0) {
+            return res.send({ status: false, message: 'ไม่พบรายการหรือไม่มีสิทธิ์ยกเลิก' });
+          }
+
+          return res.send({ status: true, message: 'ยกเลิกรายการยืมสำเร็จ และคืนค่าอุปกรณ์แล้ว' });
+        });
+      })
+      .catch(err2 => {
+        console.error('DB Error (update stock):', err2);
+        return res.send({ status: false, message: 'DB Error' });
+      });
   });
 });
+
 
 
 
@@ -604,6 +658,39 @@ app.post('/api/add-equipment', (req, res) => {
     res.json({ status: true, message: "เพิ่มอุปกรณ์ใหม่สำเร็จ", equipmentID: result.insertId });
   });
 });
+
+//api ลบอุปกรณ์เบิก(จนท.กจห.)
+// DELETE /api/delete-equipment/:equipmentID
+app.delete("/api/delete-equipment/:equipmentID", (req, res) => {
+  const { equipmentID } = req.params;
+  const userRole = Number(req.headers["x-user-role"] || 0);
+
+  // ตรวจสอบสิทธิ์ admin
+  if (userRole !== 2) {
+    return res.status(403).json({ status: false, message: "คุณไม่มีสิทธิ์ลบอุปกรณ์" });
+  }
+
+  if (!equipmentID) {
+    return res.status(400).json({ status: false, message: "Missing equipmentID" });
+  }
+
+  // SQL ลบอุปกรณ์
+  const sql = "DELETE FROM equipments WHERE equipmentID = ?";
+
+  db.query(sql, [equipmentID], (err, result) => {
+    if (err) {
+      console.error("DB Error (delete equipment):", err);
+      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในฐานข้อมูล" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: false, message: "ไม่พบอุปกรณ์นี้" });
+    }
+
+    return res.json({ status: true, message: "ลบอุปกรณ์สำเร็จ" });
+  });
+});
+
 
 // API ดึงรายการที่รออนุมัติ (จนท.กจห.)
 app.get("/api/bring-pending", async (req, res) => {

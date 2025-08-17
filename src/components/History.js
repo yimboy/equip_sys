@@ -65,7 +65,8 @@ function History() {
       case 3: return "success";
       case 4: return "error";
       case 5: return "warning";
-      case 6: return "info";
+      case 6: return "error";
+      case 7: return "info";
       default: return "default";
     }
   };
