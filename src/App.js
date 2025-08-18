@@ -9,6 +9,7 @@ import History from './components/History';
 import Return from './components/Return';
 import EditBring from './components/EditBring';
 import ApproveBring from './components/ApproveBring';
+import ApproveBorrow from './components/ApproveBorrow';
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 
@@ -27,6 +28,7 @@ function App() {
         <Route path="/return" element={<Return />} />
         <Route path="/edit-bring" element={<EditBring />} />
         <Route path="/approvebring" element={<ApproveBring />} />
+        <Route path="/approveborrow" element={<ApproveBorrow />} />
         {/* เพิ่มเส้นทางอื่น ๆ ตามต้องการ */}
         </Routes>
     </Router>
