@@ -67,6 +67,7 @@ function History() {
       case 5: return "warning";
       case 6: return "error";
       case 7: return "info";
+      case 8: return "info";
       default: return "default";
     }
   };

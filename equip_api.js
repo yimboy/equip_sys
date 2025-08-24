@@ -145,6 +145,19 @@ app.get('/api/equipment', (req, res) => {
   });
 });
 
+//api ดึงสถานะอุปกรณ์
+app.get('/api/equip-status', (req, res) => {
+  const sql = `SELECT equipstatusID, equipstatusName FROM equipstatus`;
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในฐานข้อมูล" });
+    }
+    res.json(results);
+  });
+});
+
+
 // ยืนยันการขอเบิก-จ่าย (พร้อมรับไฟล์รูป, ตรวจสต็อก, บันทึก DB)
 app.post('/api/bring-confirm', upload.single('idCardImg'), (req, res) => {
   const selectedDate = req.body.selectedDate;
@@ -503,8 +516,8 @@ app.post('/api/cancel-bring', (req, res) => {
     });
 
     // อัปเดตสถานะเป็น "ยกเลิก" (เช่น statusID = 6)
-    const updateStatusSql = 'UPDATE bring SET statusID = ? WHERE bringID = ? AND userID = ?';
-    db.query(updateStatusSql, [6, bringID, userID], (err3, result) => {
+    const updateStatusSql = 'UPDATE bring SET statusID = ? WHERE bringID = ?';
+    db.query(updateStatusSql, [6, bringID,], (err3, result) => {
       if (err3) {
         console.error('DB Error (update status):', err3);
         return res.send({ status: false, message: 'DB Error' });
@@ -595,15 +608,15 @@ app.post("/api/update-all-status", (req, res) => {
   });
 });
 
-//api แก้ไขชื่อเเละจำนวนอุปกรณ์ที่เบิก-จ่าย(จนท.กจห.)
+//api แก้ไขชื่อเเละจำนวนอุปกรณ์(จนท.กจห.,จนท.กทด.)
 app.put('/api/edit-equipment/:equipmentID', (req, res) => {
   const roleID = Number(req.headers['x-user-role']);
-  if (roleID !== 2) {
+  if (roleID !== 2 && roleID !== 3) { // ✅ แก้ไขให้รองรับ roleID 3 ด้วย
     return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
   }
 
   const equipmentID = req.params.equipmentID;
-  const { equipmentName, amount } = req.body;
+  const { equipmentName, amount, equipstatusID } = req.body;
 
   if (!equipmentName || typeof amount !== 'number' || amount < 0) {
     return res.status(400).json({ status: false, message: "ข้อมูลไม่ถูกต้อง" });
@@ -611,11 +624,11 @@ app.put('/api/edit-equipment/:equipmentID', (req, res) => {
 
   const sql = `
     UPDATE equipments
-    SET equipmentName = ?, amount = ?
+    SET equipmentName = ?, amount = ?, equipstatusID = ?
     WHERE equipmentID = ?
   `;
 
-  db.query(sql, [equipmentName, amount, equipmentID], (err, result) => {
+  db.query(sql, [equipmentName, amount, equipstatusID, equipmentID], (err, result) => {
     if (err) {
       console.error(err);
       return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในฐานข้อมูล" });
@@ -629,10 +642,10 @@ app.put('/api/edit-equipment/:equipmentID', (req, res) => {
   });
 });
 
-//api เพิ่มอุปกรณ์ใหม่(จนท.กจห.)
+//api เพิ่มอุปกรณ์ใหม่(จนท.กจห.,จนท.กทด.)
 app.post('/api/add-equipment', (req, res) => {
   const roleID = Number(req.headers['x-user-role']);
-  if (roleID !== 2) {
+  if (roleID !== 2 && roleID !== 3) {
     return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
   }
 
@@ -642,7 +655,8 @@ app.post('/api/add-equipment', (req, res) => {
     return res.status(400).json({ status: false, message: "ข้อมูลไม่ถูกต้อง" });
   }
 
-  const typeID = 1; // ✅ บังคับเป็น 1 เสมอ
+  // ✅ บังคับ typeID ตาม roleID
+  const typeID = roleID === 2 ? 1 : 2;
 
   const sql = `
     INSERT INTO equipments (equipmentName, amount, typeID)
@@ -655,18 +669,23 @@ app.post('/api/add-equipment', (req, res) => {
       return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในฐานข้อมูล" });
     }
 
-    res.json({ status: true, message: "เพิ่มอุปกรณ์ใหม่สำเร็จ", equipmentID: result.insertId });
+    res.json({ 
+      status: true, 
+      message: "เพิ่มอุปกรณ์ใหม่สำเร็จ", 
+      equipmentID: result.insertId,
+      typeID 
+    });
   });
 });
 
-//api ลบอุปกรณ์เบิก(จนท.กจห.)
-// DELETE /api/delete-equipment/:equipmentID
+
+//api ลบอุปกรณ์(จนท.กจห.,จนท.กทด.)
 app.delete("/api/delete-equipment/:equipmentID", (req, res) => {
   const { equipmentID } = req.params;
-  const userRole = Number(req.headers["x-user-role"] || 0);
+  const roleID = Number(req.headers["x-user-role"] || 0);
 
   // ตรวจสอบสิทธิ์ admin
-  if (userRole !== 2) {
+  if (roleID !== 2 && roleID !== 3 ) { // ✅ แก้ไขให้รองรับ roleID 3 ด้วย
     return res.status(403).json({ status: false, message: "คุณไม่มีสิทธิ์ลบอุปกรณ์" });
   }
 
@@ -695,10 +714,11 @@ app.delete("/api/delete-equipment/:equipmentID", (req, res) => {
 // API ดึงรายการที่รออนุมัติ (จนท.กจห.)
 app.get("/api/bring-pending", async (req, res) => {
   try {
-    // 1. ดึงรายการ bring ที่สถานะ = 0 (รออนุมัติ)
+    // 1. ดึงรายการ bring ที่สถานะ = 0 (รออนุมัติ) และ 1 (อนุมัติ)
     const sqlBring = `
       SELECT 
         b.bringID,
+        b.statusID,
         DATE_FORMAT(b.bringDate, '%Y-%m-%d') AS bringDate,
         DATE_FORMAT(b.receiveDate, '%Y-%m-%d') AS receiveDate,
         s.statusName,
@@ -712,9 +732,10 @@ app.get("/api/bring-pending", async (req, res) => {
       LEFT JOIN user u ON b.userID = u.userID
       LEFT JOIN equipments e ON bd.equipmentID = e.equipmentID
       LEFT JOIN equipmenttype et ON e.typeID = et.typeID
-      WHERE b.statusID = 0
+      WHERE b.statusID IN (0,1)
       GROUP BY 
         b.bringID,
+        b.statusID,
         b.bringDate,
         b.receiveDate,
         s.statusName,
@@ -723,7 +744,6 @@ app.get("/api/bring-pending", async (req, res) => {
       ORDER BY b.bringDate DESC
     `;
 
-    // ใช้ Promise ห่อการ query
     const brings = await new Promise((resolve, reject) => {
       db.query(sqlBring, (err, results) => {
         if (err) reject(err);
@@ -731,12 +751,10 @@ app.get("/api/bring-pending", async (req, res) => {
       });
     });
 
-    // 2. ถ้าไม่มี bring ใดๆ คืนข้อมูลว่างเลย
     if (brings.length === 0) {
       return res.json({ status: true, data: [] });
     }
 
-    // 3. ดึงรายการอุปกรณ์ทั้งหมดของ bringID เหล่านั้น
     const bringIDs = brings.map(b => b.bringID);
     const sqlItems = `
       SELECT bd.bringID, e.equipmentName, bd.amount
@@ -752,7 +770,6 @@ app.get("/api/bring-pending", async (req, res) => {
       });
     });
 
-    // 4. รวม items เข้ากับ brings ตาม bringID
     const bringMap = {};
     brings.forEach(b => {
       bringMap[b.bringID] = { ...b, items: [] };
@@ -767,7 +784,6 @@ app.get("/api/bring-pending", async (req, res) => {
       }
     });
 
-    // 5. ส่งข้อมูลกลับ client
     res.json({ status: true, data: Object.values(bringMap) });
   } catch (err) {
     console.error("Error fetching bring pending:", err);

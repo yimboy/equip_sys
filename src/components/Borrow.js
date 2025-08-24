@@ -50,6 +50,7 @@ function Borrow() {
   const [page, setPage] = useState(0);
   const rowsPerPage = 10;
   const navigate = useNavigate();
+  const roleID = Number(localStorage.getItem("roleID")); // ✅ เพิ่ม roleID
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
@@ -256,6 +257,19 @@ function Borrow() {
           <Typography variant="h5" gutterBottom>
             รายการโสตทัศนูปกรณ์
           </Typography>
+          {/* ✅ ปุ่มแก้ไขอุปกรณ์ สำหรับ roleID === 3 */}
+                    {roleID === 3 && (
+                      <Box sx={{ textAlign: "right", mb: 2 }}>
+                        <Button
+                          variant="contained"
+                          color="secondary"
+                          onClick={() => navigate("/edit-borrow")}
+                        >
+                          แก้ไขอุปกรณ์
+                        </Button>
+                      </Box>
+                    )}
+          
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -276,11 +290,13 @@ function Borrow() {
                         {Math.max(item.amount - (requestAmounts[item.equipmentID] || 0), 0)}
                       </TableCell>
                       <TableCell>
-                        {item.statusID === 1 ? (
+                        {item.equipstatusID === 1 ? (
                           <Chip label="ใช้งานได้" color="success" size="small" />
-                        ) : item.statusID === 0 ? (
+                        ) : item.equipstatusID === 0 ? (
                           <Chip label="ชำรุด" color="error" size="small" />
-                        ) : (
+                        ) : item.equipstatusID === 2 ?(
+                          <Chip label="ส่งซ่อม" color="warning" size="small" />
+                        ): (
                           <Chip label="ไม่ทราบสถานะ" color="default" size="small" />
                         )}
                       </TableCell>

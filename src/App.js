@@ -8,6 +8,7 @@ import Borrow from './components/Borrow';
 import History from './components/History';
 import Return from './components/Return';
 import EditBring from './components/EditBring';
+import EditBorrow from './components/EditBorrow';
 import ApproveBring from './components/ApproveBring';
 import ApproveBorrow from './components/ApproveBorrow';
 import React from 'react';
@@ -27,6 +28,7 @@ function App() {
         <Route path="/history" element={<History />} />
         <Route path="/return" element={<Return />} />
         <Route path="/edit-bring" element={<EditBring />} />
+        <Route path="/edit-borrow" element={<EditBorrow />} />
         <Route path="/approvebring" element={<ApproveBring />} />
         <Route path="/approveborrow" element={<ApproveBorrow />} />
         {/* เพิ่มเส้นทางอื่น ๆ ตามต้องการ */}
