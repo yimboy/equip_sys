@@ -54,6 +54,21 @@ function ApproveBorrow() {
   const userID = localStorage.getItem("userID");
   const roleID = localStorage.getItem("roleID"); // roleID 3 = เจ้าหน้าที่กทด.
 
+const getStatusColor = (statusID) => {
+    switch (statusID) {
+      case 0: return "default";
+      case 1: return "success";
+      case 2: return "error";
+      case 3: return "success";
+      case 4: return "error";
+      case 5: return "warning";
+      case 6: return "error";
+      case 7: return "warning";
+      case 8: return "default";
+      default: return "default";
+    }
+  };
+
   const formatDateOnly = (dateStr) => {
     if (!dateStr) return "-";
     return dateStr.slice(0, 10);
@@ -261,7 +276,9 @@ function ApproveBorrow() {
                       <TableCell>{formatDateOnly(item.receiveDate)}</TableCell>
                       <TableCell>{formatDateOnly(item.returnDate)}</TableCell>
                       <TableCell>
-                        <Chip label={item.statusName || "-"} />
+                        <Chip label={item.statusName || "-"} 
+                        color={getStatusColor(item.statusID)}
+                        />
                       </TableCell>
                       <TableCell>
                         <Button
@@ -283,16 +300,19 @@ function ApproveBorrow() {
                             อนุมัติ
                           </Button>
 
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color="error"
-                            onClick={() => handleReject(item.borrowID)}
-                          >
-                            ไม่อนุมัติ
-                          </Button>
-                        </Stack>
-                      </TableCell>
+                           {/* แสดงปุ่มไม่อนุมัติเฉพาะ statusID !== 8,7 */}
+                      {item.statusID !== 7 && item.statusID !== 8 &&(
+                       <Button
+                       size="small"
+                       variant="contained"
+                       color="error"
+                       onClick={() => handleReject(item.borrowID)}
+                      >
+                       ไม่อนุมัติ
+                      </Button>
+                       )}
+                      </Stack>
+                     </TableCell>
                     </TableRow>
                   ))
                 )}

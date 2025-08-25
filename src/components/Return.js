@@ -86,7 +86,7 @@ function Return() {
     fetch("http://localhost:4000/api/update-all-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ borrowID, statusID: 0 }), // 0 = รอตรวจสอบ
+      body: JSON.stringify({ borrowID, statusID: 8 }), // 8 = รอตรวจสอบ
     })
       .then((res) => res.json())
       .then((data) => {
@@ -214,23 +214,7 @@ function Return() {
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={
-                              row.statusID === 0
-                                ? "รอตรวจสอบ"
-                                : row.statusID === 1
-                                ? "อนุมัติ"
-                                : row.statusID === 2
-                                ? "ไม่อนุมัติ"
-                                : row.statusID === 3
-                                ? "ส่งคืนสำเร็จ"
-                                : row.statusID === 4
-                                ? "ส่งคืนไม่สำเร็จ"
-                                : row.statusID === 5
-                                ? "ขอยกเลิก"
-                                : row.statusID === 6
-                                ? "ยกเลิก"
-                                : "ไม่ทราบสถานะ"
-                            }
+                            label={row.statusName || "ไม่ทราบสถานะ"} // ✅ ดึงจาก DB
                             color={
                               row.statusID === 0
                                 ? "default"
@@ -245,13 +229,17 @@ function Return() {
                                 : row.statusID === 5
                                 ? "warning"
                                 : row.statusID === 6
-                                ? "info"
+                                ? "error"
+                                : row.statusID === 7
+                                ? "warning"
+                                : row.statusID === 8
+                                ? "default"
                                 : "default"
                             }
                           />
                         </TableCell>
                         <TableCell>
-                          {/* แสดงปุ่ม "ส่งคืนทั้งหมด" แค่แถวแรกของแต่ละ borrowID และเมื่อสถานะอนุมัติ */}
+                          {/* แสดงปุ่ม "ส่งคืนทั้งหมด" เฉพาะแถวแรกของ borrowID ที่ statusID = 1 */}
                           {dIdx === 0 && row.statusID === 1 && (
                             <Button
                               variant="contained"

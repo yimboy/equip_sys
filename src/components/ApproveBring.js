@@ -267,7 +267,7 @@ function ApproveBring() {
                             </>
                           )}
                           {item.statusID === 1 && (
-                            <Button size="small" variant="contained" color="warning" onClick={() => handleCancel(item.bringID)}>
+                            <Button size="small" variant="contained" color="error" onClick={() => handleCancel(item.bringID)}>
                               ยกเลิก
                             </Button>
                           )}
