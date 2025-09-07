@@ -249,6 +249,17 @@ function HomePage() {
                 อนุมัติการยืม-คืน
               </Button>
             )}
+          {/* ✅ ปุ่มพิเศษ: แสดงเฉพาะ roleID = 4 */}
+            {( roleID === 4) && (
+              <Button
+                variant="contained"
+                color="secondary"
+                size="large"
+                onClick={() => handleProtectedClick("/editrole")}
+              >
+                แก้ไขสิทธิ์ผู้ใช้
+              </Button>
+            )}
           <Button
               variant="outlined"
               color="info"

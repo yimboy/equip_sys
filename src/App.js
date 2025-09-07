@@ -11,6 +11,7 @@ import EditBring from './components/EditBring';
 import EditBorrow from './components/EditBorrow';
 import ApproveBring from './components/ApproveBring';
 import ApproveBorrow from './components/ApproveBorrow';
+import EditRole from './components/EditRole';
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 
@@ -31,6 +32,7 @@ function App() {
         <Route path="/edit-borrow" element={<EditBorrow />} />
         <Route path="/approvebring" element={<ApproveBring />} />
         <Route path="/approveborrow" element={<ApproveBorrow />} />
+        <Route path="/editrole" element={<EditRole />} />
         {/* เพิ่มเส้นทางอื่น ๆ ตามต้องการ */}
         </Routes>
     </Router>

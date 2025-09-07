@@ -157,6 +157,17 @@ app.get('/api/equip-status', (req, res) => {
   });
 });
 
+//api ดึงข้อมูลสิทธิ์ผู้ใช้
+app.get("/api/roles", (req, res) => {
+  const sql = `SELECT roleID, roleName FROM role ORDER BY roleID ASC`;
+  db.query(sql, (err, results) => {
+    if (err) {
+      return res.status(500).json({ status: false, message: "ดึง role ล้มเหลว", error: err });
+    }
+    res.json({ status: true, data: results });
+  });
+});
+
 
 // ยืนยันการขอเบิก-จ่าย (พร้อมรับไฟล์รูป, ตรวจสต็อก, บันทึก DB)
 app.post('/api/bring-confirm', upload.single('idCardImg'), (req, res) => {
@@ -1152,6 +1163,127 @@ app.post("/api/reject-borrow", (req, res) => {
   });
 });
 
+// ✅ ดึงข้อมูลผู้ใช้ทั้งหมด
+app.get("/api/user", (req, res) => {
+  const roleID = Number(req.headers["x-user-role"]); // อ่าน role ของคนที่เรียก API
+
+  // อนุญาตเฉพาะ roleID = 4 เท่านั้น
+  if (roleID !== 4) {
+    return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
+  }
+
+  const sql = `  
+    SELECT userID, username, firstname, lastname, email, mobilePhone, division, roleID 
+    FROM users
+    ORDER BY userID ASC
+  `;
+  db.query(sql, (err, results) => {
+    if (err) {
+      return res.status(500).json({ status: false, message: "ดึงข้อมูลล้มเหลว", error: err });
+    }
+    res.json({ status: true, data: results });
+  });
+});
+
+//API เเก้ไชสิทธ์์ผู้ใช้
+app.put("/api/users/:userID/role", (req, res) => {
+  const adminRole = Number(req.headers["x-user-role"]);
+  const { userID } = req.params;
+  const { roleID } = req.body;
+
+  console.log("adminRole:", adminRole, "userID:", userID, "roleID:", roleID);
+
+  if (adminRole !== 4) {
+    return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์แก้ไข role" });
+  }
+
+  if (!roleID) {
+    return res.status(400).json({ status: false, message: "กรุณาส่ง roleID ใหม่" });
+  }
+
+  const sql = "UPDATE users SET roleID = ? WHERE userID = ?"; // เปลี่ยน table เป็น users
+  db.query(sql, [Number(roleID), userID], (err, result) => {
+    if (err) {
+      console.error("SQL error:", err);
+      return res.status(500).json({ status: false, message: "อัปเดตล้มเหลว", error: err });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: false, message: "ไม่พบผู้ใช้" });
+    }
+
+    res.json({ status: true, message: "อัปเดต role สำเร็จ" });
+  });
+});
+
+
+// ✅ ดึงผู้ใช้ทั้งหมดที่ยัง active
+app.get("/api/users", (req, res) => {
+  const roleID = Number(req.headers["x-user-role"]);
+
+  if (roleID !== 4) {
+    return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
+  }
+
+  const sql = `
+    SELECT userID, username, email, roleID, isActive
+    FROM users
+    WHERE isActive = 1
+    ORDER BY userID ASC
+  `;
+  db.query(sql, (err, results) => {
+    if (err) {
+      return res.status(500).json({ status: false, message: "ดึงข้อมูลล้มเหลว", error: err });
+    }
+    res.json({ status: true, data: results });
+  });
+});
+
+// ✅ Soft delete ผู้ใช้
+app.put("/api/users/:userID/deactivate", (req, res) => {
+  const adminRole = Number(req.headers["x-user-role"]);
+  const { userID } = req.params;
+
+  if (adminRole !== 4) {
+    return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ปิดการใช้งานผู้ใช้" });
+  }
+
+  const sql = "UPDATE users SET isActive = 0 WHERE userID = ?";
+  db.query(sql, [userID], (err, result) => {
+    if (err) {
+      return res.status(500).json({ status: false, message: "อัปเดตล้มเหลว", error: err });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: false, message: "ไม่พบผู้ใช้" });
+    }
+
+    res.json({ status: true, message: "ปิดการใช้งานผู้ใช้สำเร็จ" });
+  });
+});
+
+// ✅ Restore ผู้ใช้
+app.put("/api/users/:userID/activate", (req, res) => {
+  const adminRole = Number(req.headers["x-user-role"]);
+  const { userID } = req.params;
+
+  if (adminRole !== 4) {
+    return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์เปิดการใช้งานผู้ใช้" });
+  }
+
+  const sql = "UPDATE users SET isActive = 1 WHERE userID = ?";
+  db.query(sql, [userID], (err, result) => {
+    if (err) {
+      return res.status(500).json({ status: false, message: "อัปเดตล้มเหลว", error: err });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: false, message: "ไม่พบผู้ใช้" });
+    }
+
+    res.json({ status: true, message: "เปิดการใช้งานผู้ใช้สำเร็จ" });
+  });
+});
 
 
 

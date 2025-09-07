@@ -92,7 +92,7 @@ const getStatusColor = (statusID) => {
   };
 
   useEffect(() => {
-    if (!isLoggedIn || roleID !== "3") {
+    if (!isLoggedIn ||(roleID !== "3" && roleID !== "4")) {
       navigate("/login");
       return;
     }

@@ -291,7 +291,7 @@ function Borrow() {
                       </TableCell>
                       <TableCell>
                         {item.equipstatusID === 1 ? (
-                          <Chip label="ใช้งานได้" color="success" size="small" />
+                          <Chip label="พร้อมใช้งาน" color="success" size="small" />
                         ) : item.equipstatusID === 0 ? (
                           <Chip label="ชำรุด" color="error" size="small" />
                         ) : item.equipstatusID === 2 ?(
