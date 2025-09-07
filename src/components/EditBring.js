@@ -26,7 +26,7 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 const theme = createTheme({
   typography: {
@@ -56,6 +56,9 @@ function EditBring() {
   const [newEquipName, setNewEquipName] = useState("");
   const [newEquipAmount, setNewEquipAmount] = useState("");
   const [editingEquipments, setEditingEquipments] = useState({});
+
+  // ✅ state สำหรับค้นหา
+  const [searchTerm, setSearchTerm] = useState("");
 
   const loadEquipment = () => {
     fetch("http://localhost:4000/api/equipment")
@@ -123,7 +126,6 @@ function EditBring() {
     const edited = editingEquipments[equipmentID];
     const trimmedName = edited.equipmentName.trim();
 
-    // 🔎 เช็คชื่อซ้ำ (ยกเว้นตัวเอง)
     const duplicate = equipment.some(
       (item) =>
         item.equipmentID !== equipmentID &&
@@ -215,7 +217,6 @@ function EditBring() {
       return;
     }
 
-    // 🔎 เช็คชื่อซ้ำ
     const duplicate = equipment.some(
       (item) => item.equipmentName.toLowerCase() === trimmedName.toLowerCase()
     );
@@ -260,25 +261,6 @@ function EditBring() {
       });
   };
 
-  const handleIncrease = (id) => {
-    setRequestAmounts((prev) => {
-      const current = prev[id] || 0;
-      const item = equipment.find((e) => e.equipmentID === id);
-      if (!item) return prev;
-      if (current < item.amount) {
-        return { ...prev, [id]: current + 1 };
-      }
-      return prev;
-    });
-  };
-
-  const handleDecrease = (id) => {
-    setRequestAmounts((prev) => ({
-      ...prev,
-      [id]: Math.max((prev[id] || 0) - 1, 0),
-    }));
-  };
-
   const handleClose = (_, reason) => {
     if (reason === "clickaway") return;
     setOpen(false);
@@ -287,6 +269,15 @@ function EditBring() {
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
   };
+
+  // ✅ filter ทั้งชื่อและจำนวน
+  const filteredEquipment = equipment.filter((item) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      item.equipmentName.toLowerCase().includes(term) ||
+      item.amount.toString().includes(term)
+    );
+  });
 
   return (
     <ThemeProvider theme={theme}>
@@ -301,8 +292,18 @@ function EditBring() {
             >
               <ArrowBackIcon />
             </IconButton>
-            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")}>
-              <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
+            <IconButton
+              color="inherit"
+              edge="start"
+              sx={{ mr: 1 }}
+              onClick={() => navigate("/homepage")}
+            >
+              <Box
+                component="img"
+                src={logo}
+                alt="logo"
+                sx={{ width: 52, height: 52, objectFit: "contain" }}
+              />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
               เบิก-จ่ายอุปกรณ์สำนักงาน
@@ -312,14 +313,23 @@ function EditBring() {
                 {firstname} {lastname}
               </Typography>
             )}
-            <IconButton color="inherit" edge="end" onClick={handleUserIconClick} sx={{ p: 0, ml: 1 }}>
+            <IconButton
+              color="inherit"
+              edge="end"
+              onClick={handleUserIconClick}
+              sx={{ p: 0, ml: 1 }}
+            >
               {isLoggedIn && profilePic ? (
                 <Avatar src={profilePic} sx={{ width: 36, height: 36 }} />
               ) : (
                 <AccountCircleIcon sx={{ width: 36, height: 36 }} />
               )}
             </IconButton>
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+            >
               <MenuItem onClick={handleProfile}>จัดการข้อมูลผู้ใช้</MenuItem>
               <MenuItem onClick={handleLogout}>ออกจากระบบ</MenuItem>
             </Menu>
@@ -330,6 +340,18 @@ function EditBring() {
           <Typography variant="h5" gutterBottom>
             รายการอุปกรณ์สำนักงาน
           </Typography>
+
+          {/* 🔹 ช่องค้นหา */}
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+            <TextField
+              label="ค้นหาอุปกรณ์"
+              variant="outlined"
+              size="small"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ width: 300 }}
+            />
+          </Box>
 
           {isAdmin && (
             <Paper sx={{ p: 2, mb: 3 }}>
@@ -351,7 +373,11 @@ function EditBring() {
                   onChange={(e) => setNewEquipAmount(e.target.value)}
                   sx={{ width: 120 }}
                 />
-                <Button variant="contained" color="primary" onClick={handleAddNewEquipment}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleAddNewEquipment}
+                >
                   เพิ่มอุปกรณ์
                 </Button>
               </Stack>
@@ -368,61 +394,85 @@ function EditBring() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {equipment.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((item) => (
-                  <TableRow key={item.equipmentID}>
-                    <TableCell>
-                      {isAdmin ? (
-                        <TextField
-                          variant="standard"
-                          value={editingEquipments[item.equipmentID]?.equipmentName || ""}
-                          onChange={(e) => handleEditChange(item.equipmentID, "equipmentName", e.target.value)}
-                        />
-                      ) : (
-                        item.equipmentName
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isAdmin ? (
-                        <TextField
-                          variant="standard"
-                          type="number"
-                          inputProps={{ min: 0 }}
-                          value={editingEquipments[item.equipmentID]?.amount || 0}
-                          onChange={(e) => handleEditChange(item.equipmentID, "amount", e.target.value)}
-                          sx={{ width: 80 }}
-                        />
-                      ) : (
-                        Math.max(item.amount - (requestAmounts[item.equipmentID] || 0), 0)
-                      )}
-                    </TableCell>
-                    {isAdmin && (
+                {filteredEquipment
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((item) => (
+                    <TableRow key={item.equipmentID}>
                       <TableCell>
-                        <Stack direction="row" spacing={1}>
-                          <Button
-                            variant="contained"
-                            size="small"
-                            onClick={() => handleSaveEdit(item.equipmentID)}
-                          >
-                            บันทึก
-                          </Button>
-                          <Button
-                            variant="contained"
-                            color="error"
-                            size="small"
-                            onClick={() => handleDeleteEquipment(item.equipmentID)}
-                          >
-                            ลบ
-                          </Button>
-                        </Stack>
+                        {isAdmin ? (
+                          <TextField
+                            variant="standard"
+                            value={
+                              editingEquipments[item.equipmentID]
+                                ?.equipmentName || ""
+                            }
+                            onChange={(e) =>
+                              handleEditChange(
+                                item.equipmentID,
+                                "equipmentName",
+                                e.target.value
+                              )
+                            }
+                          />
+                        ) : (
+                          item.equipmentName
+                        )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                      <TableCell>
+                        {isAdmin ? (
+                          <TextField
+                            variant="standard"
+                            type="number"
+                            inputProps={{ min: 0 }}
+                            value={
+                              editingEquipments[item.equipmentID]?.amount || 0
+                            }
+                            onChange={(e) =>
+                              handleEditChange(
+                                item.equipmentID,
+                                "amount",
+                                e.target.value
+                              )
+                            }
+                            sx={{ width: 80 }}
+                          />
+                        ) : (
+                          Math.max(
+                            item.amount - (requestAmounts[item.equipmentID] || 0),
+                            0
+                          )
+                        )}
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={() => handleSaveEdit(item.equipmentID)}
+                            >
+                              บันทึก
+                            </Button>
+                            <Button
+                              variant="contained"
+                              color="error"
+                              size="small"
+                              onClick={() =>
+                                handleDeleteEquipment(item.equipmentID)
+                              }
+                            >
+                              ลบ
+                            </Button>
+                          </Stack>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
             <TablePagination
               component="div"
-              count={equipment.length}
+              count={filteredEquipment.length} // ✅ pagination ใช้กับผลลัพธ์ที่ค้นหา
               page={page}
               onPageChange={handleChangePage}
               rowsPerPage={rowsPerPage}
@@ -431,7 +481,12 @@ function EditBring() {
           </TableContainer>
         </Box>
 
-        <Snackbar open={open} autoHideDuration={2500} onClose={handleClose} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
+        <Snackbar
+          open={open}
+          autoHideDuration={2500}
+          onClose={handleClose}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
           <Alert severity={alertSeverity} sx={{ width: "100%" }}>
             {alertMsg}
           </Alert>

@@ -47,7 +47,7 @@ function EditBorrow() {
   const navigate = useNavigate();
 
   const roleID = Number(localStorage.getItem("roleID") || 0);
-  const isAdmin = roleID === 3 || roleID === 4; // จนท.กทด
+  const isAdmin = roleID === 3 || roleID === 4;
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
@@ -57,6 +57,9 @@ function EditBorrow() {
   const [newEquipAmount, setNewEquipAmount] = useState("");
   const [editingEquipments, setEditingEquipments] = useState({});
   const [statusOptions, setStatusOptions] = useState([]);
+
+  // ✅ state สำหรับค้นหา
+  const [searchTerm, setSearchTerm] = useState("");
 
   // โหลดรายการสถานะจาก API
   useEffect(() => {
@@ -278,6 +281,15 @@ function EditBorrow() {
     setPage(newPage);
   };
 
+  // ✅ filter อุปกรณ์ตาม searchTerm (ชื่อ + จำนวน)
+  const filteredEquipment = equipment.filter((item) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      item.equipmentName.toLowerCase().includes(term) ||
+      item.amount.toString().includes(term)
+    );
+  });
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
@@ -339,6 +351,18 @@ function EditBorrow() {
           <Typography variant="h5" gutterBottom>
             รายการโสตทัศนูปกรณ์
           </Typography>
+ {/* ✅ Search Bar */}
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+            <TextField
+              label="ค้นหาอุปกรณ์"
+              variant="outlined"
+              size="small"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ width: 300 }}
+            />
+          </Box>
+
 
           {isAdmin && (
             <Paper sx={{ p: 2, mb: 3 }}>
@@ -382,7 +406,7 @@ function EditBorrow() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {equipment
+                {filteredEquipment
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((item) => (
                     <TableRow key={item.equipmentID}>
@@ -490,7 +514,7 @@ function EditBorrow() {
             </Table>
             <TablePagination
               component="div"
-              count={equipment.length}
+              count={filteredEquipment.length} // ✅ ใช้รายการที่ถูก filter แล้ว
               page={page}
               onPageChange={handleChangePage}
               rowsPerPage={rowsPerPage}

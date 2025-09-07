@@ -48,7 +48,7 @@ app.post('/api/register', function(req, res){
 //Login
 app.post('/api/login', function(req, res){
   const { username, password } = req.body;
-  let sql = 'SELECT * FROM user WHERE ';
+  let sql = 'SELECT * FROM users WHERE ';
   sql += "username ='" + username+ "'";
   sql += " AND password ='" + password + "'";
   console.log(sql);
