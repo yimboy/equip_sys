@@ -47,7 +47,7 @@ function EditBring() {
   const navigate = useNavigate();
 
   const roleID = Number(localStorage.getItem("roleID") || 0);
-  const isAdmin = roleID === 2;
+  const isAdmin = roleID === 2 || roleID === 4;
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");

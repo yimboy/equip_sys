@@ -258,7 +258,7 @@ function Borrow() {
             รายการโสตทัศนูปกรณ์
           </Typography>
           {/* ✅ ปุ่มแก้ไขอุปกรณ์ สำหรับ roleID === 3 */}
-                    {roleID === 3 && (
+                    {(roleID === 3 || roleID === 4) && (
                       <Box sx={{ textAlign: "right", mb: 2 }}>
                         <Button
                           variant="contained"

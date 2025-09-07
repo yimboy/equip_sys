@@ -224,7 +224,7 @@ function Bring() {
           </Typography>
 
           {/* ✅ ปุ่มแก้ไขอุปกรณ์ สำหรับ roleID === 2 */}
-          {roleID === 2 && (
+          {(roleID === 2|| roleID === 4) && (
             <Box sx={{ textAlign: "right", mb: 2 }}>
               <Button
                 variant="contained"

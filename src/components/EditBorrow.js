@@ -47,7 +47,7 @@ function EditBorrow() {
   const navigate = useNavigate();
 
   const roleID = Number(localStorage.getItem("roleID") || 0);
-  const isAdmin = roleID === 3; // จนท.กทด
+  const isAdmin = roleID === 3 || roleID === 4; // จนท.กทด
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");

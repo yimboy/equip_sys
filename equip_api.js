@@ -96,7 +96,7 @@ app.post('/api/forgot-password', (req, res) => {
 // ดึงข้อมูลโปรไฟล์ผู้ใช้ตาม userID (base64)
 app.get('/api/profile/:id', (req, res) => {
   const userID = req.params.id; // ✅ แก้ตรงนี้
-  const sql = "SELECT  firstName, lastName, email, mobilePhone, division, imageFile FROM user WHERE userID = ?";
+  const sql = "SELECT  firstName, lastName, email, mobilePhone, division, imageFile FROM users WHERE userID = ?";
   db.query(sql, [userID], (err, result) => {
     if (err) {
       console.error("❌ SQL Error: " + err);
@@ -118,7 +118,7 @@ app.post('/api/profile/update', (req, res) => {
     return res.status(400).json({ status: false, message: "ไม่พบ userID" });
   }
 
-  const sql = "UPDATE user SET firstName = ?, lastName = ?, email = ?, mobilePhone = ?, division = ?, imageFile = ? WHERE userID = ?";
+  const sql = "UPDATE users SET firstName = ?, lastName = ?, email = ?, mobilePhone = ?, division = ?, imageFile = ? WHERE userID = ?";
   db.query(sql, [firstName, lastName, email, mobilePhone, division, imageFile, userID], (err, result) => {
     if (err) {
       console.error("❌ SQL Error: " + err);
@@ -622,7 +622,7 @@ app.post("/api/update-all-status", (req, res) => {
 //api แก้ไขชื่อเเละจำนวนอุปกรณ์(จนท.กจห.,จนท.กทด.)
 app.put('/api/edit-equipment/:equipmentID', (req, res) => {
   const roleID = Number(req.headers['x-user-role']);
-  if (roleID !== 2 && roleID !== 3) { // ✅ แก้ไขให้รองรับ roleID 3 ด้วย
+  if (roleID !== 2 && roleID !== 3 && roleID !== 4) { // ✅ แก้ไขให้รองรับ roleID 3 ด้วย
     return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
   }
 
@@ -656,7 +656,7 @@ app.put('/api/edit-equipment/:equipmentID', (req, res) => {
 //api เพิ่มอุปกรณ์ใหม่(จนท.กจห.,จนท.กทด.)
 app.post('/api/add-equipment', (req, res) => {
   const roleID = Number(req.headers['x-user-role']);
-  if (roleID !== 2 && roleID !== 3) {
+  if (roleID !== 2 && roleID !== 3 && roleID !== 4) {
     return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
   }
 
@@ -696,7 +696,7 @@ app.delete("/api/delete-equipment/:equipmentID", (req, res) => {
   const roleID = Number(req.headers["x-user-role"] || 0);
 
   // ตรวจสอบสิทธิ์ admin
-  if (roleID !== 2 && roleID !== 3 ) { // ✅ แก้ไขให้รองรับ roleID 3 ด้วย
+  if (roleID !== 2 && roleID !== 3 && roleID !== 4 ) { // ✅ แก้ไขให้รองรับ roleID 3 ด้วย
     return res.status(403).json({ status: false, message: "คุณไม่มีสิทธิ์ลบอุปกรณ์" });
   }
 
