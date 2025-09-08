@@ -55,9 +55,9 @@ function EditBring() {
 
   const [newEquipName, setNewEquipName] = useState("");
   const [newEquipAmount, setNewEquipAmount] = useState("");
+  const [newEquipUnit, setNewEquipUnit] = useState("");
   const [editingEquipments, setEditingEquipments] = useState({});
 
-  // ✅ state สำหรับค้นหา
   const [searchTerm, setSearchTerm] = useState("");
 
   const loadEquipment = () => {
@@ -66,12 +66,14 @@ function EditBring() {
       .then((data) => {
         const filtered = data.filter((item) => item.typeID === 1);
         setEquipment(filtered);
+
         if (isAdmin) {
           const editState = {};
           filtered.forEach((item) => {
             editState[item.equipmentID] = {
               equipmentName: item.equipmentName,
               amount: item.amount,
+              unit: item.unit, // ✅ เก็บค่า unit
             };
           });
           setEditingEquipments(editState);
@@ -125,6 +127,7 @@ function EditBring() {
   const handleSaveEdit = (equipmentID) => {
     const edited = editingEquipments[equipmentID];
     const trimmedName = edited.equipmentName.trim();
+    const trimmedUnit = edited.unit.trim();
 
     const duplicate = equipment.some(
       (item) =>
@@ -139,7 +142,7 @@ function EditBring() {
       return;
     }
 
-    if (!trimmedName || edited.amount < 0) {
+    if (!trimmedName || edited.amount < 0 || !trimmedUnit) {
       setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ให้ถูกต้อง");
       setAlertSeverity("error");
       setOpen(true);
@@ -155,6 +158,7 @@ function EditBring() {
       body: JSON.stringify({
         equipmentName: trimmedName,
         amount: edited.amount,
+        unit: trimmedUnit, // ✅ ส่ง unit ไปด้วย
       }),
     })
       .then((res) => res.json())
@@ -210,7 +214,9 @@ function EditBring() {
   // 🔹 เพิ่มอุปกรณ์ใหม่
   const handleAddNewEquipment = () => {
     const trimmedName = newEquipName.trim();
-    if (!trimmedName || Number(newEquipAmount) < 0) {
+    const trimmedUnit = newEquipUnit.trim();
+
+    if (!trimmedName || Number(newEquipAmount) < 0 || !trimmedUnit) {
       setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ใหม่ให้ถูกต้อง");
       setAlertSeverity("error");
       setOpen(true);
@@ -236,6 +242,7 @@ function EditBring() {
       body: JSON.stringify({
         equipmentName: trimmedName,
         amount: Number(newEquipAmount),
+        unit: trimmedUnit,
         typeID: 1,
       }),
     })
@@ -247,6 +254,7 @@ function EditBring() {
           setOpen(true);
           setNewEquipName("");
           setNewEquipAmount("");
+          setNewEquipUnit("");
           loadEquipment();
         } else {
           setAlertMsg(`เกิดข้อผิดพลาด: ${data.message}`);
@@ -270,7 +278,6 @@ function EditBring() {
     setPage(newPage);
   };
 
-  // ✅ filter ทั้งชื่อและจำนวน
   const filteredEquipment = equipment.filter((item) => {
     const term = searchTerm.toLowerCase();
     return (
@@ -341,7 +348,6 @@ function EditBring() {
             รายการอุปกรณ์สำนักงาน
           </Typography>
 
-          {/* 🔹 ช่องค้นหา */}
           <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
             <TextField
               label="ค้นหาอุปกรณ์"
@@ -360,7 +366,7 @@ function EditBring() {
               </Typography>
               <Stack spacing={2} direction="row" alignItems="center">
                 <TextField
-                  label="ชื่ออุปกรณ์(หน่วย)"
+                  label="ชื่ออุปกรณ์"
                   value={newEquipName}
                   onChange={(e) => setNewEquipName(e.target.value)}
                   sx={{ flexGrow: 1 }}
@@ -371,6 +377,12 @@ function EditBring() {
                   inputProps={{ min: 0 }}
                   value={newEquipAmount}
                   onChange={(e) => setNewEquipAmount(e.target.value)}
+                  sx={{ width: 120 }}
+                />
+                <TextField
+                  label="หน่วย"
+                  value={newEquipUnit}
+                  onChange={(e) => setNewEquipUnit(e.target.value)}
                   sx={{ width: 120 }}
                 />
                 <Button
@@ -390,6 +402,7 @@ function EditBring() {
                 <TableRow>
                   <TableCell>ชื่ออุปกรณ์</TableCell>
                   <TableCell>จำนวนคงเหลือ</TableCell>
+                  <TableCell>หน่วย</TableCell>
                   {isAdmin && <TableCell>จัดการ</TableCell>}
                 </TableRow>
               </TableHead>
@@ -443,6 +456,20 @@ function EditBring() {
                           )
                         )}
                       </TableCell>
+                      <TableCell>
+                        {isAdmin ? (
+                          <TextField
+                            variant="standard"
+                            value={editingEquipments[item.equipmentID]?.unit || ""}
+                            onChange={(e) =>
+                              handleEditChange(item.equipmentID, "unit", e.target.value)
+                            }
+                            sx={{ width: 80 }}
+                          />
+                        ) : (
+                          item.unit
+                        )}
+                      </TableCell>
                       {isAdmin && (
                         <TableCell>
                           <Stack direction="row" spacing={1}>
@@ -472,7 +499,7 @@ function EditBring() {
             </Table>
             <TablePagination
               component="div"
-              count={filteredEquipment.length} // ✅ pagination ใช้กับผลลัพธ์ที่ค้นหา
+              count={filteredEquipment.length}
               page={page}
               onPageChange={handleChangePage}
               rowsPerPage={rowsPerPage}

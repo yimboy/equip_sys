@@ -58,7 +58,7 @@ function Bring() {
     fetch("http://localhost:4000/api/equipment")
       .then((res) => res.json())
       .then((data) => {
-        const filtered = data.filter((item) => item.typeID === 1);
+        const filtered = data.filter((item) => item.typeID === 1 && item.amount > 0 ); // เฉพาะอุปกรณ์สำนักงานที่มีจำนวนมากกว่า 0
         setEquipment(filtered);
       })
       .catch(() => setEquipment([]));
@@ -242,6 +242,7 @@ function Bring() {
                 <TableRow>
                   <TableCell>ชื่ออุปกรณ์</TableCell>
                   <TableCell>จำนวนคงเหลือ</TableCell>
+                  <TableCell>หน่วย</TableCell>
                   <TableCell>จำนวนที่ต้องการเบิก</TableCell>
                 </TableRow>
               </TableHead>
@@ -250,6 +251,7 @@ function Bring() {
                   <TableRow key={item.equipmentID}>
                     <TableCell>{item.equipmentName}</TableCell>
                     <TableCell>{Math.max(item.amount - (requestAmounts[item.equipmentID] || 0), 0)}</TableCell>
+                    <TableCell>{item.unit}</TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Button variant="outlined" size="small" onClick={() => handleDecrease(item.equipmentID)}>

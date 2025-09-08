@@ -55,6 +55,7 @@ function EditBorrow() {
 
   const [newEquipName, setNewEquipName] = useState("");
   const [newEquipAmount, setNewEquipAmount] = useState("");
+  const [newEquipUnit, setNewEquipUnit] = useState("");
   const [editingEquipments, setEditingEquipments] = useState({});
   const [statusOptions, setStatusOptions] = useState([]);
 
@@ -81,6 +82,7 @@ function EditBorrow() {
             editState[item.equipmentID] = {
               equipmentName: item.equipmentName,
               amount: item.amount,
+              unit: item.unit, // ✅ เก็บค่า unit
               equipstatusID:
                 item.equipstatusID !== undefined ? item.equipstatusID : 1,
             };
@@ -138,6 +140,7 @@ function EditBorrow() {
   const handleSaveEdit = (equipmentID) => {
     const edited = editingEquipments[equipmentID];
     const trimmedName = edited.equipmentName.trim();
+    const trimmedUnit = edited.unit.trim();
 
     const duplicate = equipment.some(
       (item) =>
@@ -168,6 +171,7 @@ function EditBorrow() {
       body: JSON.stringify({
         equipmentName: trimmedName,
         amount: edited.amount,
+        unit: trimmedUnit, // ✅ ส่ง unit ไปด้วย
         equipstatusID: edited.equipstatusID,
       }),
     })
@@ -220,7 +224,8 @@ function EditBorrow() {
 
   const handleAddNewEquipment = () => {
     const trimmedName = newEquipName.trim();
-    if (!trimmedName || Number(newEquipAmount) < 0) {
+    const trimmedUnit = newEquipUnit.trim();
+    if (!trimmedName || Number(newEquipAmount) < 0 || !trimmedUnit) {
       setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ใหม่ให้ถูกต้อง");
       setAlertSeverity("error");
       setOpen(true);
@@ -246,6 +251,7 @@ function EditBorrow() {
       body: JSON.stringify({
         equipmentName: trimmedName,
         amount: Number(newEquipAmount),
+        unit: trimmedUnit, // ✅ ส่ง unit ไปด้วย
         equipstatusID: 1,
         typeID: 2,
       }),
@@ -258,6 +264,7 @@ function EditBorrow() {
           setOpen(true);
           setNewEquipName("");
           setNewEquipAmount("");
+          setNewEquipUnit("");
           loadEquipment();
         } else {
           setAlertMsg(`เกิดข้อผิดพลาด: ${data.message}`);
@@ -384,6 +391,12 @@ function EditBorrow() {
                   onChange={(e) => setNewEquipAmount(e.target.value)}
                   sx={{ width: 120 }}
                 />
+                <TextField
+                                  label="หน่วย"
+                                  value={newEquipUnit}
+                                  onChange={(e) => setNewEquipUnit(e.target.value)}
+                                  sx={{ width: 120 }}
+                />
                 <Button
                   variant="contained"
                   color="primary"
@@ -401,6 +414,7 @@ function EditBorrow() {
                 <TableRow>
                   <TableCell>ชื่ออุปกรณ์</TableCell>
                   <TableCell>จำนวนคงเหลือ</TableCell>
+                  <TableCell>หน่วย</TableCell>
                   <TableCell>สถานะ</TableCell>
                   {isAdmin && <TableCell>จัดการ</TableCell>}
                 </TableRow>
@@ -455,6 +469,20 @@ function EditBorrow() {
                           )
                         )}
                       </TableCell>
+                       <TableCell>
+                                              {isAdmin ? (
+                                                <TextField
+                                                  variant="standard"
+                                                  value={editingEquipments[item.equipmentID]?.unit || ""}
+                                                  onChange={(e) =>
+                                                    handleEditChange(item.equipmentID, "unit", e.target.value)
+                                                  }
+                                                  sx={{ width: 80 }}
+                                                />
+                                              ) : (
+                                                item.unit
+                                              )}
+                                            </TableCell>
                       <TableCell>
                         {isAdmin ? (
                           <TextField

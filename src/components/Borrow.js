@@ -58,7 +58,7 @@ function Borrow() {
 
   const getMinDate = () => {
     const date = new Date();
-    date.setDate(date.getDate() + 1);
+    date.setDate(date.getDate() + 3);
     return date.toISOString().split("T")[0];
   };
 
@@ -66,7 +66,7 @@ function Borrow() {
     fetch("http://localhost:4000/api/equipment")
       .then((res) => res.json())
       .then((data) => {
-        const filtered = data.filter((item) => item.typeID === 2);
+        const filtered = data.filter((item) => item.typeID === 2 && item.amount > 0 ); // เฉพาะอุปกรณ์สำนักงานที่มีจำนวนมากกว่า 0
         setEquipment(filtered);
       })
       .catch(() => setEquipment([]));
@@ -276,6 +276,7 @@ function Borrow() {
                 <TableRow>
                   <TableCell>ชื่ออุปกรณ์</TableCell>
                   <TableCell>จำนวนคงเหลือ</TableCell>
+                  <TableCell>หน่วย</TableCell>
                   <TableCell>สถานะ</TableCell>
                   <TableCell>จำนวนที่ต้องการยืม</TableCell>
                 </TableRow>
@@ -289,6 +290,7 @@ function Borrow() {
                       <TableCell>
                         {Math.max(item.amount - (requestAmounts[item.equipmentID] || 0), 0)}
                       </TableCell>
+                      <TableCell>{item.unit}</TableCell>
                       <TableCell>
                         {item.equipstatusID === 1 ? (
                           <Chip label="พร้อมใช้งาน" color="success" size="small" />

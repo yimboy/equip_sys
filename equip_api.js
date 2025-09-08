@@ -627,19 +627,19 @@ app.put('/api/edit-equipment/:equipmentID', (req, res) => {
   }
 
   const equipmentID = req.params.equipmentID;
-  const { equipmentName, amount, equipstatusID } = req.body;
+  const { equipmentName, amount, unit, equipstatusID } = req.body;
 
-  if (!equipmentName || typeof amount !== 'number' || amount < 0) {
+  if (!equipmentName || typeof amount !== 'number' || !unit || amount < 0) {
     return res.status(400).json({ status: false, message: "ข้อมูลไม่ถูกต้อง" });
   }
 
   const sql = `
     UPDATE equipments
-    SET equipmentName = ?, amount = ?, equipstatusID = ?
+    SET equipmentName = ?, amount = ?, unit = ?, equipstatusID = ?
     WHERE equipmentID = ?
   `;
 
-  db.query(sql, [equipmentName, amount, equipstatusID, equipmentID], (err, result) => {
+  db.query(sql, [equipmentName, amount, unit,  equipstatusID, equipmentID], (err, result) => {
     if (err) {
       console.error(err);
       return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในฐานข้อมูล" });
@@ -660,9 +660,9 @@ app.post('/api/add-equipment', (req, res) => {
     return res.status(403).json({ status: false, message: "ไม่มีสิทธิ์ใช้งาน" });
   }
 
-  const { equipmentName, amount } = req.body;
+  const { equipmentName, amount, unit } = req.body;
 
-  if (!equipmentName || typeof amount !== 'number' || amount < 0) {
+  if (!equipmentName || typeof amount !== 'number' || !unit || amount < 0) {
     return res.status(400).json({ status: false, message: "ข้อมูลไม่ถูกต้อง" });
   }
 
@@ -670,11 +670,11 @@ app.post('/api/add-equipment', (req, res) => {
   const typeID = roleID === 2 ? 1 : 2;
 
   const sql = `
-    INSERT INTO equipments (equipmentName, amount, typeID)
-    VALUES (?, ?, ?)
+    INSERT INTO equipments (equipmentName, amount, unit, typeID)
+    VALUES (?, ?, ?, ?)
   `;
 
-  db.query(sql, [equipmentName, amount, typeID], (err, result) => {
+  db.query(sql, [equipmentName, amount, unit, typeID], (err, result) => {
     if (err) {
       console.error(err);
       return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในฐานข้อมูล" });
@@ -740,7 +740,7 @@ app.get("/api/bring-pending", async (req, res) => {
       FROM bring b
       LEFT JOIN bringdetail bd ON b.bringID = bd.bringID
       LEFT JOIN status s ON b.statusID = s.statusID
-      LEFT JOIN user u ON b.userID = u.userID
+      LEFT JOIN users u ON b.userID = u.userID
       LEFT JOIN equipments e ON bd.equipmentID = e.equipmentID
       LEFT JOIN equipmenttype et ON e.typeID = et.typeID
       WHERE b.statusID IN (0,1)
@@ -911,7 +911,7 @@ app.get("/api/borrow-pending", async (req, res) => {
       FROM borrow b
       LEFT JOIN borrowdetail bd ON b.borrowID = bd.borrowID
       LEFT JOIN status s ON b.statusID = s.statusID
-      LEFT JOIN user u ON b.userID = u.userID
+      LEFT JOIN users u ON b.userID = u.userID
       LEFT JOIN equipments e ON bd.equipmentID = e.equipmentID
       LEFT JOIN equipmenttype et ON e.typeID = et.typeID
       WHERE b.statusID IN (0, 7, 8)
