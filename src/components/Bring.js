@@ -38,6 +38,7 @@ function Bring() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const [equipment, setEquipment] = useState([]);
+  const [searchTerm, setSearchTerm] = useState(""); // ✅ เพิ่ม state สำหรับค้นหา
   const [selectedDate, setSelectedDate] = useState("");
   const [idCardImg, setIdCardImg] = useState(null);
   const [idCardPreview, setIdCardPreview] = useState(null);
@@ -48,7 +49,7 @@ function Bring() {
   const [page, setPage] = useState(0);
   const rowsPerPage = 10;
   const navigate = useNavigate();
-  const roleID = Number(localStorage.getItem("roleID")); // ✅ เพิ่ม roleID
+  const roleID = Number(localStorage.getItem("roleID"));
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
@@ -58,7 +59,9 @@ function Bring() {
     fetch("http://localhost:4000/api/equipment")
       .then((res) => res.json())
       .then((data) => {
-        const filtered = data.filter((item) => item.typeID === 1 && item.amount > 0 ); // เฉพาะอุปกรณ์สำนักงานที่มีจำนวนมากกว่า 0
+        const filtered = data.filter(
+          (item) => item.typeID === 1 && item.amount > 0
+        );
         setEquipment(filtered);
       })
       .catch(() => setEquipment([]));
@@ -121,12 +124,10 @@ function Bring() {
     setRequestAmounts((prev) => {
       const current = prev[id] || 0;
       if (current <= 1) {
-        // ❌ ถ้าเหลือ 0 → ลบออกจาก object เลย
         const updated = { ...prev };
         delete updated[id];
         return updated;
       } else {
-        // ✅ ลดค่าลง 1
         return { ...prev, [id]: current - 1 };
       }
     });
@@ -188,13 +189,28 @@ function Bring() {
     setPage(newPage);
   };
 
+  // ✅ filter อุปกรณ์ตาม searchTerm
+  const filteredEquipment = equipment.filter((item) =>
+    item.equipmentName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
-            <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")}>
-              <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
+            <IconButton
+              color="inherit"
+              edge="start"
+              sx={{ mr: 1 }}
+              onClick={() => navigate("/homepage")}
+            >
+              <Box
+                component="img"
+                src={logo}
+                alt="logo"
+                sx={{ width: 52, height: 52, objectFit: "contain" }}
+              />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
               เบิก-จ่ายอุปกรณ์สำนักงาน
@@ -204,14 +220,23 @@ function Bring() {
                 {firstname} {lastname}
               </Typography>
             )}
-            <IconButton color="inherit" edge="end" onClick={handleUserIconClick} sx={{ p: 0, ml: 1 }}>
+            <IconButton
+              color="inherit"
+              edge="end"
+              onClick={handleUserIconClick}
+              sx={{ p: 0, ml: 1 }}
+            >
               {isLoggedIn && profilePic ? (
                 <Avatar src={profilePic} sx={{ width: 36, height: 36 }} />
               ) : (
                 <AccountCircleIcon sx={{ width: 36, height: 36 }} />
               )}
             </IconButton>
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+            >
               <MenuItem onClick={handleProfile}>จัดการข้อมูลผู้ใช้</MenuItem>
               <MenuItem onClick={handleLogout}>ออกจากระบบ</MenuItem>
             </Menu>
@@ -222,9 +247,18 @@ function Bring() {
           <Typography variant="h5" gutterBottom>
             รายการอุปกรณ์สำนักงาน
           </Typography>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+            <TextField
+              label="ค้นหาอุปกรณ์"
+              variant="outlined"
+              size="small"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ width: 300 }}
+            />
+          </Box>
 
-          {/* ✅ ปุ่มแก้ไขอุปกรณ์ สำหรับ roleID === 2 */}
-          {(roleID === 2|| roleID === 4) && (
+          {(roleID === 2 || roleID === 4) && (
             <Box sx={{ textAlign: "right", mb: 2 }}>
               <Button
                 variant="contained"
@@ -247,34 +281,50 @@ function Bring() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {equipment.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((item) => (
-                  <TableRow key={item.equipmentID}>
-                    <TableCell>{item.equipmentName}</TableCell>
-                    <TableCell>{Math.max(item.amount - (requestAmounts[item.equipmentID] || 0), 0)}</TableCell>
-                    <TableCell>{item.unit}</TableCell>
-                    <TableCell>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Button variant="outlined" size="small" onClick={() => handleDecrease(item.equipmentID)}>
-                          -
-                        </Button>
-                        <Typography>{requestAmounts[item.equipmentID] || 0}</Typography>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleIncrease(item.equipmentID)}
-                          disabled={(requestAmounts[item.equipmentID] || 0) >= item.amount}
-                        >
-                          +
-                        </Button>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredEquipment
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((item) => (
+                    <TableRow key={item.equipmentID}>
+                      <TableCell>{item.equipmentName}</TableCell>
+                      <TableCell>
+                        {Math.max(
+                          item.amount - (requestAmounts[item.equipmentID] || 0),
+                          0
+                        )}
+                      </TableCell>
+                      <TableCell>{item.unit}</TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleDecrease(item.equipmentID)}
+                          >
+                            -
+                          </Button>
+                          <Typography>
+                            {requestAmounts[item.equipmentID] || 0}
+                          </Typography>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleIncrease(item.equipmentID)}
+                            disabled={
+                              (requestAmounts[item.equipmentID] || 0) >=
+                              item.amount
+                            }
+                          >
+                            +
+                          </Button>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
             <TablePagination
               component="div"
-              count={equipment.length}
+              count={filteredEquipment.length}
               page={page}
               onPageChange={handleChangePage}
               rowsPerPage={rowsPerPage}
@@ -293,7 +343,12 @@ function Bring() {
               sx={{ minWidth: 200 }}
             />
             <label>
-              <Input type="file" accept="image/*" sx={{ display: "none" }} onChange={handleIdCardChange} />
+              <Input
+                type="file"
+                accept="image/*"
+                sx={{ display: "none" }}
+                onChange={handleIdCardChange}
+              />
               <Button variant="outlined" component="span">
                 แนบรูปบัตรประจำตัว
               </Button>
@@ -303,10 +358,22 @@ function Bring() {
                 component="img"
                 src={idCardPreview}
                 alt="idcard"
-                sx={{ width: 60, height: 40, objectFit: "cover", ml: 2, borderRadius: 1, border: "1px solid #ccc" }}
+                sx={{
+                  width: 60,
+                  height: 40,
+                  objectFit: "cover",
+                  ml: 2,
+                  borderRadius: 1,
+                  border: "1px solid #ccc",
+                }}
               />
             )}
-            <Button variant="contained" color="primary" onClick={handleConfirm} sx={{ ml: 2 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleConfirm}
+              sx={{ ml: 2 }}
+            >
               ยืนยัน
             </Button>
           </Stack>

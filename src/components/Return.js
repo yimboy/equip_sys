@@ -45,14 +45,25 @@ function Return() {
   const lastname = localStorage.getItem("lastname");
   const userID = localStorage.getItem("userID");
 
+  // ฟังก์ชันดึงสีตาม statusID
+  const getStatusColor = (statusID) => {
+    switch (statusID) {
+      case 0: return "default"; // รอดำเนินการ
+      case 1: return "info";    // อนุมัติ
+      case 2: return "error";   // ไม่อนุมัติ
+      case 3: return "success"; // ส่งคืนสำเร็จ
+      case 7: return "warning"; // ค้างคืน
+      case 8: return "default"; // รอตรวจสอบ
+      case 9: return "success"; // รับของสำเร็จ
+      default: return "default";
+    }
+  };
+
   useEffect(() => {
     if (!userID) return;
     fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`)
       .then((res) => res.json())
-      .then((data) => {
-        console.log("DATA FROM API:", data);
-        setHistory(data);
-      })
+      .then((data) => setHistory(data))
       .catch(() => setHistory([]));
   }, [userID]);
 
@@ -81,7 +92,6 @@ function Return() {
     navigate("/profile");
   };
 
-  // ฟังก์ชันส่งคืนทั้งหมดใน borrowID นั้น ๆ
   const handleReturnAllClick = (borrowID) => {
     fetch("http://localhost:4000/api/update-all-status", {
       method: "POST",
@@ -214,38 +224,19 @@ function Return() {
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={row.statusName || "ไม่ทราบสถานะ"} // ✅ ดึงจาก DB
-                            color={
-                              row.statusID === 0
-                                ? "default"
-                                : row.statusID === 1
-                                ? "success"
-                                : row.statusID === 2
-                                ? "error"
-                                : row.statusID === 3
-                                ? "success"
-                                : row.statusID === 4
-                                ? "error"
-                                : row.statusID === 5
-                                ? "warning"
-                                : row.statusID === 6
-                                ? "error"
-                                : row.statusID === 7
-                                ? "warning"
-                                : row.statusID === 8
-                                ? "default"
-                                : "default"
-                            }
+                            label={row.statusName} // ✅ ใช้จาก DB
+                            color={getStatusColor(row.statusID)}
                           />
                         </TableCell>
                         <TableCell>
-                          {/* แสดงปุ่ม "ส่งคืนทั้งหมด" เฉพาะแถวแรกของ borrowID ที่ statusID = 1 */}
-                          {dIdx === 0 && row.statusID === 1 && (
+                          {dIdx === 0 && row.statusID === 9 && (
                             <Button
                               variant="contained"
                               color="primary"
                               size="small"
-                              onClick={() => handleReturnAllClick(row.borrowID)}
+                              onClick={() =>
+                                handleReturnAllClick(row.borrowID)
+                              }
                             >
                               ส่งคืน
                             </Button>

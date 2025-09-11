@@ -107,67 +107,24 @@ function ApproveBring() {
     setOpen(false);
   };
 
-  const handleApprove = (bringID) => {
-    if (!window.confirm("ยืนยันการอนุมัติการเบิกนี้?")) return;
+  // ✅ ใช้ API ตัวเดียว update สถานะ
+  const handleUpdateStatus = (bringID, statusID, confirmMsg) => {
+    if (!window.confirm(confirmMsg)) return;
 
-    fetch("http://localhost:4000/api/approve-bring", {
+    fetch("http://localhost:4000/api/update-bring-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bringID, userID }),
+      body: JSON.stringify({ bringID, userID, statusID }),
     })
       .then((res) => res.json())
       .then((data) => {
-        setAlertMsg(data.status ? "อนุมัติสำเร็จ" : data.message || "ไม่สามารถอนุมัติได้");
+        setAlertMsg(data.message);
         setAlertSeverity(data.status ? "success" : "error");
         setOpen(true);
         if (data.status) loadBringData();
       })
       .catch(() => {
-        setAlertMsg("เกิดข้อผิดพลาดในการอนุมัติ");
-        setAlertSeverity("error");
-        setOpen(true);
-      });
-  };
-
-  const handleReject = (bringID) => {
-    if (!window.confirm("ยืนยันการไม่อนุมัติการเบิกนี้?")) return;
-
-    fetch("http://localhost:4000/api/reject-bring", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bringID, userID }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setAlertMsg(data.status ? "ไม่อนุมัติสำเร็จ" : data.message || "ไม่สามารถไม่อนุมัติได้");
-        setAlertSeverity(data.status ? "success" : "error");
-        setOpen(true);
-        if (data.status) loadBringData();
-      })
-      .catch(() => {
-        setAlertMsg("เกิดข้อผิดพลาดในการไม่อนุมัติ");
-        setAlertSeverity("error");
-        setOpen(true);
-      });
-  };
-
-  const handleCancel = (bringID) => {
-    if (!window.confirm("ยืนยันการยกเลิกรายการเบิกนี้?")) return;
-
-    fetch("http://localhost:4000/api/cancel-bring", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bringID, userID }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setAlertMsg(data.status ? "ยกเลิกรายการสำเร็จ" : data.message || "ไม่สามารถยกเลิกได้");
-        setAlertSeverity(data.status ? "success" : "error");
-        setOpen(true);
-        if (data.status) loadBringData();
-      })
-      .catch(() => {
-        setAlertMsg("เกิดข้อผิดพลาดในการยกเลิก");
+        setAlertMsg("เกิดข้อผิดพลาดในการอัปเดตสถานะ");
         setAlertSeverity("error");
         setOpen(true);
       });
@@ -188,6 +145,7 @@ function ApproveBring() {
       case 0: return "default"; // รออนุมัติ = เทา
       case 1: return "success"; // อนุมัติ = เขียว
       case 6: return "error";   // ยกเลิก = แดง
+      case 9: return "success";    // รับของสำเร็จ = ฟ้า
       default: return "default";
     }
   };
@@ -203,13 +161,27 @@ function ApproveBring() {
               sx={{ mr: 1 }}
               onClick={() => navigate("/homepage")}
             >
-              <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
+              <Box
+                component="img"
+                src={logo}
+                alt="logo"
+                sx={{ width: 52, height: 52, objectFit: "contain" }}
+              />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
               อนุมัติการเบิกอุปกรณ์
             </Typography>
-            {isLoggedIn && <Typography sx={{ mr: 1 }}>{firstname} {lastname}</Typography>}
-            <IconButton color="inherit" edge="end" onClick={handleUserIconClick} sx={{ p: 0, ml: 1 }}>
+            {isLoggedIn && (
+              <Typography sx={{ mr: 1 }}>
+                {firstname} {lastname}
+              </Typography>
+            )}
+            <IconButton
+              color="inherit"
+              edge="end"
+              onClick={handleUserIconClick}
+              sx={{ p: 0, ml: 1 }}
+            >
               {isLoggedIn && profilePic ? (
                 <Avatar src={profilePic} sx={{ width: 36, height: 36 }} />
               ) : (
@@ -242,7 +214,9 @@ function ApproveBring() {
               <TableBody>
                 {bringList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">ไม่พบข้อมูล</TableCell>
+                    <TableCell colSpan={6} align="center">
+                      ไม่พบข้อมูล
+                    </TableCell>
                   </TableRow>
                 ) : (
                   bringList.map((item, idx) => (
@@ -251,10 +225,17 @@ function ApproveBring() {
                       <TableCell>{item.count}</TableCell>
                       <TableCell>{formatDateOnly(item.receiveDate)}</TableCell>
                       <TableCell>
-                        <Chip label={item.statusName || "-"} color={getStatusColor(item.statusID)} />
+                        <Chip
+                          label={item.statusName || "-"}
+                          color={getStatusColor(item.statusID)}
+                        />
                       </TableCell>
                       <TableCell>
-                        <Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => handleDetailOpen(item)}
+                        >
                           รายละเอียด
                         </Button>
                       </TableCell>
@@ -262,14 +243,51 @@ function ApproveBring() {
                         <Stack direction="row" spacing={1}>
                           {item.statusID === 0 && (
                             <>
-                              <Button size="small" variant="contained" color="success" onClick={() => handleApprove(item.bringID)}>อนุมัติ</Button>
-                              <Button size="small" variant="contained" color="error" onClick={() => handleReject(item.bringID)}>ไม่อนุมัติ</Button>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color="success"
+                                onClick={() =>
+                                  handleUpdateStatus(item.bringID, 1, "ยืนยันการอนุมัติการเบิกนี้?")
+                                }
+                              >
+                                อนุมัติ
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color="error"
+                                onClick={() =>
+                                  handleUpdateStatus(item.bringID, 6, "ยืนยันการไม่อนุมัติการเบิกนี้?")
+                                }
+                              >
+                                ไม่อนุมัติ
+                              </Button>
                             </>
                           )}
                           {item.statusID === 1 && (
-                            <Button size="small" variant="contained" color="error" onClick={() => handleCancel(item.bringID)}>
-                              ยกเลิก
-                            </Button>
+                            <>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color="info"
+                                onClick={() =>
+                                  handleUpdateStatus(item.bringID, 9, "ยืนยันการรับของเรียบร้อย?")
+                                }
+                              >
+                                รับของแล้ว
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color="error"
+                                onClick={() =>
+                                  handleUpdateStatus(item.bringID, 6, "ยืนยันการยกเลิกรายการเบิกนี้?")
+                                }
+                              >
+                                ยกเลิก
+                              </Button>
+                            </>
                           )}
                         </Stack>
                       </TableCell>
@@ -286,19 +304,40 @@ function ApproveBring() {
           <DialogContent dividers>
             {selectedDetail ? (
               <Box>
-                <Typography variant="body1" mb={1}><strong>วันที่ทำรายการ:</strong> {formatDateOnly(selectedDetail.bringDate)}</Typography>
-                <Typography variant="body1" mb={1}><strong>ประเภท:</strong> {selectedDetail.typeName || "-"}</Typography>
-                <Typography variant="body1" mb={1}><strong>วันรับของ:</strong> {formatDateOnly(selectedDetail.receiveDate)}</Typography>
-                <Typography variant="body1" mb={1}><strong>สถานะ:</strong> {selectedDetail.statusName || "-"}</Typography>
-                <Typography variant="body1" mb={1}><strong>ชื่อผู้เบิก:</strong> {selectedDetail.firstname && selectedDetail.lastname ? `${selectedDetail.firstname} ${selectedDetail.lastname}` : "-"}</Typography>
+                <Typography variant="body1" mb={1}>
+                  <strong>วันที่ทำรายการ:</strong>{" "}
+                  {formatDateOnly(selectedDetail.bringDate)}
+                </Typography>
+                <Typography variant="body1" mb={1}>
+                  <strong>ประเภท:</strong> {selectedDetail.typeName || "-"}
+                </Typography>
+                <Typography variant="body1" mb={1}>
+                  <strong>วันรับของ:</strong>{" "}
+                  {formatDateOnly(selectedDetail.receiveDate)}
+                </Typography>
+                <Typography variant="body1" mb={1}>
+                  <strong>สถานะ:</strong> {selectedDetail.statusName || "-"}
+                </Typography>
+                <Typography variant="body1" mb={1}>
+                  <strong>ชื่อผู้เบิก:</strong>{" "}
+                  {selectedDetail.firstname && selectedDetail.lastname
+                    ? `${selectedDetail.firstname} ${selectedDetail.lastname}`
+                    : "-"}
+                </Typography>
 
-                <Typography variant="body1" mt={2} mb={1} fontWeight="bold">รายการอุปกรณ์ที่เบิก:</Typography>
+                <Typography variant="body1" mt={2} mb={1} fontWeight="bold">
+                  รายการอุปกรณ์ที่เบิก:
+                </Typography>
                 {selectedDetail.items && selectedDetail.items.length > 0 ? (
                   selectedDetail.items.map((it, i) => (
-                    <Typography key={i} variant="body2" sx={{ ml: 2 }}>- {it.equipmentName} จำนวน {it.amount} ชิ้น</Typography>
+                    <Typography key={i} variant="body2" sx={{ ml: 2 }}>
+                      - {it.equipmentName} จำนวน {it.amount} ชิ้น
+                    </Typography>
                   ))
                 ) : (
-                  <Typography variant="body2" sx={{ ml: 2 }}>ไม่มีข้อมูลอุปกรณ์</Typography>
+                  <Typography variant="body2" sx={{ ml: 2 }}>
+                    ไม่มีข้อมูลอุปกรณ์
+                  </Typography>
                 )}
               </Box>
             ) : (
@@ -310,8 +349,15 @@ function ApproveBring() {
           </DialogActions>
         </Dialog>
 
-        <Snackbar open={open} autoHideDuration={2500} onClose={handleClose} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
-          <Alert severity={alertSeverity} sx={{ width: "100%" }}>{alertMsg}</Alert>
+        <Snackbar
+          open={open}
+          autoHideDuration={2500}
+          onClose={handleClose}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert severity={alertSeverity} sx={{ width: "100%" }}>
+            {alertMsg}
+          </Alert>
         </Snackbar>
       </Box>
     </ThemeProvider>

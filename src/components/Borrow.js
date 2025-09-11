@@ -22,12 +22,12 @@ import {
   Alert,
   Input,
   TablePagination,
+  Chip,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
-import { Chip } from "@mui/material";
 
 const theme = createTheme({
   typography: {
@@ -39,6 +39,7 @@ function Borrow() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const [equipment, setEquipment] = useState([]);
+  const [searchTerm, setSearchTerm] = useState(""); // ✅ state สำหรับค้นหา
   const [selectedDate, setSelectedDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [idCardImg, setIdCardImg] = useState(null);
@@ -50,7 +51,7 @@ function Borrow() {
   const [page, setPage] = useState(0);
   const rowsPerPage = 10;
   const navigate = useNavigate();
-  const roleID = Number(localStorage.getItem("roleID")); // ✅ เพิ่ม roleID
+  const roleID = Number(localStorage.getItem("roleID"));
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
@@ -66,7 +67,9 @@ function Borrow() {
     fetch("http://localhost:4000/api/equipment")
       .then((res) => res.json())
       .then((data) => {
-        const filtered = data.filter((item) => item.typeID === 2 && item.amount > 0 ); // เฉพาะอุปกรณ์สำนักงานที่มีจำนวนมากกว่า 0
+        const filtered = data.filter(
+          (item) => item.typeID === 2 && item.amount > 0
+        );
         setEquipment(filtered);
       })
       .catch(() => setEquipment([]));
@@ -123,7 +126,6 @@ function Borrow() {
     });
   };
 
-  // ✅ แก้ให้ลบ key ออกถ้าเหลือ 0
   const handleDecrease = (id) => {
     setRequestAmounts((prev) => {
       const current = prev[id] || 0;
@@ -147,7 +149,9 @@ function Borrow() {
 
     const minDate = getMinDate();
     if (selectedDate < minDate || returnDate < selectedDate) {
-      setAlertMsg("วันรับของต้องล่วงหน้าอย่างน้อย 2 วัน และวันคืนต้องไม่น้อยกว่าวันรับของ");
+      setAlertMsg(
+        "วันรับของต้องล่วงหน้าอย่างน้อย 2 วัน และวันคืนต้องไม่น้อยกว่าวันรับของ"
+      );
       setAlertSeverity("error");
       setOpen(true);
       return;
@@ -204,6 +208,11 @@ function Borrow() {
     setOpen(false);
   };
 
+  // ✅ filter อุปกรณ์ตาม searchTerm
+  const filteredEquipment = equipment.filter((item) =>
+    item.equipmentName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
@@ -257,19 +266,30 @@ function Borrow() {
           <Typography variant="h5" gutterBottom>
             รายการโสตทัศนูปกรณ์
           </Typography>
-          {/* ✅ ปุ่มแก้ไขอุปกรณ์ สำหรับ roleID === 3 */}
-                    {(roleID === 3 || roleID === 4) && (
-                      <Box sx={{ textAlign: "right", mb: 2 }}>
-                        <Button
-                          variant="contained"
-                          color="secondary"
-                          onClick={() => navigate("/edit-borrow")}
-                        >
-                          แก้ไขอุปกรณ์
-                        </Button>
-                      </Box>
-                    )}
-          
+
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+            <TextField
+              label="ค้นหาอุปกรณ์"
+              variant="outlined"
+              size="small"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ width: 300 }}
+            />
+          </Box>
+
+          {(roleID === 3 || roleID === 4) && (
+            <Box sx={{ textAlign: "right", mb: 2 }}>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => navigate("/edit-borrow")}
+              >
+                แก้ไขอุปกรณ์
+              </Button>
+            </Box>
+          )}
+
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -282,24 +302,35 @@ function Borrow() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {equipment
+                {filteredEquipment
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((item) => (
                     <TableRow key={item.equipmentID}>
                       <TableCell>{item.equipmentName}</TableCell>
                       <TableCell>
-                        {Math.max(item.amount - (requestAmounts[item.equipmentID] || 0), 0)}
+                        {Math.max(
+                          item.amount - (requestAmounts[item.equipmentID] || 0),
+                          0
+                        )}
                       </TableCell>
                       <TableCell>{item.unit}</TableCell>
                       <TableCell>
                         {item.equipstatusID === 1 ? (
-                          <Chip label="พร้อมใช้งาน" color="success" size="small" />
+                          <Chip
+                            label="พร้อมใช้งาน"
+                            color="success"
+                            size="small"
+                          />
                         ) : item.equipstatusID === 0 ? (
                           <Chip label="ชำรุด" color="error" size="small" />
-                        ) : item.equipstatusID === 2 ?(
+                        ) : item.equipstatusID === 2 ? (
                           <Chip label="ส่งซ่อม" color="warning" size="small" />
-                        ): (
-                          <Chip label="ไม่ทราบสถานะ" color="default" size="small" />
+                        ) : (
+                          <Chip
+                            label="ไม่ทราบสถานะ"
+                            color="default"
+                            size="small"
+                          />
                         )}
                       </TableCell>
                       <TableCell>
@@ -311,12 +342,17 @@ function Borrow() {
                           >
                             -
                           </Button>
-                          <Typography>{requestAmounts[item.equipmentID] || 0}</Typography>
+                          <Typography>
+                            {requestAmounts[item.equipmentID] || 0}
+                          </Typography>
                           <Button
                             variant="outlined"
                             size="small"
                             onClick={() => handleIncrease(item.equipmentID)}
-                            disabled={(requestAmounts[item.equipmentID] || 0) >= item.amount}
+                            disabled={
+                              (requestAmounts[item.equipmentID] || 0) >=
+                              item.amount
+                            }
                           >
                             +
                           </Button>
@@ -328,7 +364,7 @@ function Borrow() {
             </Table>
             <TablePagination
               component="div"
-              count={equipment.length}
+              count={filteredEquipment.length}
               page={page}
               onPageChange={handleChangePage}
               rowsPerPage={rowsPerPage}
