@@ -107,14 +107,19 @@ function ApproveBring() {
     setOpen(false);
   };
 
-  // ✅ ใช้ API ตัวเดียว update สถานะ
-  const handleUpdateStatus = (bringID, statusID, confirmMsg) => {
+  // อัปเดตสถานะ bring พร้อมเก็บ approveBy และ approveDate
+  const handleUpdateStatus = (bringID, statusID) => {
+    let confirmMsg = "ยืนยันการเปลี่ยนสถานะ?";
+    if (statusID === 1) confirmMsg = "ยืนยันการอนุมัติการเบิกนี้?";
+    else if (statusID === 6) confirmMsg = "ยืนยันการไม่อนุมัติ/ยกเลิกรายการนี้?";
+    else if (statusID === 9) confirmMsg = "ยืนยันการรับของเรียบร้อย?";
+
     if (!window.confirm(confirmMsg)) return;
 
     fetch("http://localhost:4000/api/update-bring-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bringID, userID, statusID }),
+      body: JSON.stringify({ bringID, statusID, userID }), // ส่ง userID เป็นผู้อนุมัติ
     })
       .then((res) => res.json())
       .then((data) => {
@@ -142,10 +147,10 @@ function ApproveBring() {
 
   const getStatusColor = (statusID) => {
     switch (statusID) {
-      case 0: return "default"; // รออนุมัติ = เทา
-      case 1: return "success"; // อนุมัติ = เขียว
-      case 6: return "error";   // ยกเลิก = แดง
-      case 9: return "success";    // รับของสำเร็จ = ฟ้า
+      case 0: return "default"; // รออนุมัติ
+      case 1: return "success"; // อนุมัติ
+      case 6: return "error";   // ยกเลิก
+      case 9: return "info";    // รับของแล้ว
       default: return "default";
     }
   };
@@ -247,9 +252,7 @@ function ApproveBring() {
                                 size="small"
                                 variant="contained"
                                 color="success"
-                                onClick={() =>
-                                  handleUpdateStatus(item.bringID, 1, "ยืนยันการอนุมัติการเบิกนี้?")
-                                }
+                                onClick={() => handleUpdateStatus(item.bringID, 1)}
                               >
                                 อนุมัติ
                               </Button>
@@ -257,9 +260,7 @@ function ApproveBring() {
                                 size="small"
                                 variant="contained"
                                 color="error"
-                                onClick={() =>
-                                  handleUpdateStatus(item.bringID, 6, "ยืนยันการไม่อนุมัติการเบิกนี้?")
-                                }
+                                onClick={() => handleUpdateStatus(item.bringID, 6)}
                               >
                                 ไม่อนุมัติ
                               </Button>
@@ -271,9 +272,7 @@ function ApproveBring() {
                                 size="small"
                                 variant="contained"
                                 color="info"
-                                onClick={() =>
-                                  handleUpdateStatus(item.bringID, 9, "ยืนยันการรับของเรียบร้อย?")
-                                }
+                                onClick={() => handleUpdateStatus(item.bringID, 9)}
                               >
                                 รับของแล้ว
                               </Button>
@@ -281,9 +280,7 @@ function ApproveBring() {
                                 size="small"
                                 variant="contained"
                                 color="error"
-                                onClick={() =>
-                                  handleUpdateStatus(item.bringID, 6, "ยืนยันการยกเลิกรายการเบิกนี้?")
-                                }
+                                onClick={() => handleUpdateStatus(item.bringID, 6)}
                               >
                                 ยกเลิก
                               </Button>
@@ -305,15 +302,13 @@ function ApproveBring() {
             {selectedDetail ? (
               <Box>
                 <Typography variant="body1" mb={1}>
-                  <strong>วันที่ทำรายการ:</strong>{" "}
-                  {formatDateOnly(selectedDetail.bringDate)}
+                  <strong>วันที่ทำรายการ:</strong> {formatDateOnly(selectedDetail.bringDate)}
                 </Typography>
                 <Typography variant="body1" mb={1}>
                   <strong>ประเภท:</strong> {selectedDetail.typeName || "-"}
                 </Typography>
                 <Typography variant="body1" mb={1}>
-                  <strong>วันรับของ:</strong>{" "}
-                  {formatDateOnly(selectedDetail.receiveDate)}
+                  <strong>วันรับของ:</strong> {formatDateOnly(selectedDetail.receiveDate)}
                 </Typography>
                 <Typography variant="body1" mb={1}>
                   <strong>สถานะ:</strong> {selectedDetail.statusName || "-"}

@@ -24,6 +24,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -47,11 +48,15 @@ function ApproveBorrow() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
 
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [pendingBorrowID, setPendingBorrowID] = useState(null);
+
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
   const lastname = localStorage.getItem("lastname");
-  const userID = localStorage.getItem("userID");
   const roleID = localStorage.getItem("roleID");
+  const userID = localStorage.getItem("userID");
 
   const formatDateOnly = (dateStr) => (dateStr ? dateStr.slice(0, 10) : "-");
 
@@ -107,19 +112,20 @@ function ApproveBorrow() {
   const handleProfile = () => { handleMenuClose(); navigate("/profile"); };
   const handleClose = (_, reason) => { if (reason !== "clickaway") setOpen(false); };
 
+  // อัปเดตสถานะ (อนุมัติ / รับของ)
   const handleUpdateStatus = (borrowID, currentStatus) => {
     let newStatus = null;
     if (currentStatus === 0) newStatus = 1; // อนุมัติ
     else if (currentStatus === 1) newStatus = 9; // รับของ
     else return;
 
-    let confirmMsg = newStatus === 1 ? "ยืนยันการอนุมัติการยืม?" : "ยืนยันการรับของแล้ว?";
+    const confirmMsg = newStatus === 1 ? "ยืนยันการอนุมัติการยืม?" : "ยืนยันการรับของแล้ว?";
     if (!window.confirm(confirmMsg)) return;
 
     fetch("http://localhost:4000/api/update-borrow-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ borrowID, statusID: newStatus }),
+      body: JSON.stringify({ borrowID, statusID: newStatus, userID }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -135,13 +141,14 @@ function ApproveBorrow() {
       });
   };
 
+  // ไม่อนุมัติ
   const handleReject = (borrowID) => {
     if (!window.confirm("ยืนยันการไม่อนุมัติการยืม-คืนนี้?")) return;
 
     fetch("http://localhost:4000/api/update-borrow-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ borrowID, statusID: 2 }), // 2 = ไม่อนุมัติ
+      body: JSON.stringify({ borrowID, statusID: 2, userID }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -157,14 +164,20 @@ function ApproveBorrow() {
       });
   };
 
-  // ✅ เพิ่มฟังก์ชันส่งคืนสำเร็จ
-  const handleReturnSuccess = (borrowID) => {
-    if (!window.confirm("ยืนยันว่ารายการนี้ส่งคืนสำเร็จแล้ว?")) return;
+  // ส่งคืนพร้อม note
+  const handleReturnClick = (borrowID) => {
+    setPendingBorrowID(borrowID);
+    setNoteText("");
+    setNoteOpen(true);
+  };
+
+  const handleConfirmReturn = () => {
+    if (!pendingBorrowID) return;
 
     fetch("http://localhost:4000/api/update-borrow-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ borrowID, statusID: 3 }), // 3 = ส่งคืนสำเร็จ
+      body: JSON.stringify({ borrowID: pendingBorrowID, statusID: 3, note: noteText, userID }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -177,6 +190,10 @@ function ApproveBorrow() {
         setAlertMsg("เกิดข้อผิดพลาดในการอัปเดตสถานะ");
         setAlertSeverity("error");
         setOpen(true);
+      })
+      .finally(() => {
+        setNoteOpen(false);
+        setPendingBorrowID(null);
       });
   };
 
@@ -223,49 +240,36 @@ function ApproveBorrow() {
                   <TableRow>
                     <TableCell colSpan={7} align="center">ไม่พบข้อมูล</TableCell>
                   </TableRow>
-                ) : (
-                  borrowList.map((item, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{formatDateOnly(item.borrowDate)}</TableCell>
-                      <TableCell>{item.count}</TableCell>
-                      <TableCell>{formatDateOnly(item.receiveDate)}</TableCell>
-                      <TableCell>{formatDateOnly(item.returnDate)}</TableCell>
-                      <TableCell><Chip label={item.statusName || "-"} color={getStatusColor(item.statusID)} /></TableCell>
-                      <TableCell>
-                        <Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>รายละเอียด</Button>
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1}>
-                          {(item.statusID === 0 || item.statusID === 1) && (
-                            <Button
-                              size="small"
-                              variant="contained"
-                              color={item.statusID === 0 ? "success" : "primary"}
-                              onClick={() => handleUpdateStatus(item.borrowID, item.statusID)}
-                            >
-                              {item.statusID === 0 ? "อนุมัติ" : "รับของ"}
-                            </Button>
-                          )}
-
-                          {item.statusID === 8 && (
-                            <Button
-                              size="small"
-                              variant="contained"
-                              color="success"
-                              onClick={() => handleReturnSuccess(item.borrowID)}
-                            >
-                              ส่งคืนสำเร็จ
-                            </Button>
-                          )}
-
-                          {item.statusID !== 7 && item.statusID !== 8 && item.statusID !== 9 && (
-                            <Button size="small" variant="contained" color="error" onClick={() => handleReject(item.borrowID)}>ไม่อนุมัติ</Button>
-                          )}
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                ) : borrowList.map((item, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{formatDateOnly(item.borrowDate)}</TableCell>
+                    <TableCell>{item.count}</TableCell>
+                    <TableCell>{formatDateOnly(item.receiveDate)}</TableCell>
+                    <TableCell>{formatDateOnly(item.returnDate)}</TableCell>
+                    <TableCell><Chip label={item.statusName || "-"} color={getStatusColor(item.statusID)} /></TableCell>
+                    <TableCell><Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>รายละเอียด</Button></TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={1}>
+                        {(item.statusID === 0 || item.statusID === 1) && (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color={item.statusID === 0 ? "success" : "primary"}
+                            onClick={() => handleUpdateStatus(item.borrowID, item.statusID)}
+                          >
+                            {item.statusID === 0 ? "อนุมัติ" : "รับของ"}
+                          </Button>
+                        )}
+                        {item.statusID === 8 && (
+                          <Button size="small" variant="contained" color="success" onClick={() => handleReturnClick(item.borrowID)}>ส่งคืนสำเร็จ</Button>
+                        )}
+                        {item.statusID !== 7 && item.statusID !== 8 && item.statusID !== 9 && (
+                          <Button size="small" variant="contained" color="error" onClick={() => handleReject(item.borrowID)}>ไม่อนุมัติ</Button>
+                        )}
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </TableContainer>
@@ -282,24 +286,31 @@ function ApproveBorrow() {
                 <Typography variant="body1" mb={1}><strong>วันส่งคืน:</strong> {formatDateOnly(selectedDetail.returnDate)}</Typography>
                 <Typography variant="body1" mb={1}><strong>สถานะ:</strong> {selectedDetail.statusName || "-"}</Typography>
                 <Typography variant="body1" mb={1}><strong>ชื่อผู้ยืม:</strong> {selectedDetail.firstname && selectedDetail.lastname ? `${selectedDetail.firstname} ${selectedDetail.lastname}` : "-"}</Typography>
-                {selectedDetail.imageFile && (
-                  <Box mt={2}>
-                    <Typography variant="body1" mb={1} fontWeight="bold">หลักฐานประกอบ:</Typography>
-                    <Box component="img" src={`http://localhost:4000/uploads/${selectedDetail.imageFile}`} alt="proof" sx={{ maxWidth: "100%", borderRadius: 1 }} />
-                  </Box>
-                )}
-                <Typography variant="body1" mt={2} mb={1} fontWeight="bold">รายการอุปกรณ์:</Typography>
-                {selectedDetail.items && selectedDetail.items.length > 0 ? (
-                  selectedDetail.items.map((item, idx) => (
-                    <Typography key={idx} variant="body2" sx={{ ml: 2 }}>- {item.equipmentName} จำนวน {item.amount} ชิ้น</Typography>
-                  ))
-                ) : (
-                  <Typography variant="body2" sx={{ ml: 2 }}>ไม่มีข้อมูลอุปกรณ์</Typography>
-                )}
+                {selectedDetail.items && selectedDetail.items.length > 0 ? selectedDetail.items.map((item, idx) => (
+                  <Typography key={idx} variant="body2" sx={{ ml: 2 }}>- {item.equipmentName} จำนวน {item.amount} ชิ้น</Typography>
+                )) : <Typography variant="body2" sx={{ ml: 2 }}>ไม่มีข้อมูลอุปกรณ์</Typography>}
               </Box>
             ) : <Typography>กำลังโหลดข้อมูล...</Typography>}
           </DialogContent>
           <DialogActions><Button onClick={handleDetailClose}>ปิด</Button></DialogActions>
+        </Dialog>
+
+        <Dialog open={noteOpen} onClose={() => setNoteOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>กรอกหมายเหตุการส่งคืน</DialogTitle>
+          <DialogContent dividers>
+            <TextField
+              fullWidth
+              label="หมายเหตุ"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              multiline
+              rows={3}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setNoteOpen(false)}>ยกเลิก</Button>
+            <Button onClick={handleConfirmReturn} variant="contained" color="success">ยืนยัน</Button>
+          </DialogActions>
         </Dialog>
 
         <Snackbar open={open} autoHideDuration={2500} onClose={handleClose} anchorOrigin={{ vertical: "top", horizontal: "center" }}>

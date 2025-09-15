@@ -88,6 +88,9 @@ function History() {
         const bring = bringData.map((item) => ({
           ...item,
           id: item.bringID,
+          date: item.bringDate,            // <-- เพิ่มตรงนี้
+          approveBy: item.approveBy,  // <-- เพิ่มตรงนี้
+          approveDate: item.approveDate, // <-- เพิ่มตรงนี้
           statusID: item.statusID,
           statusName: item.statusName,   // <-- เพิ่มตรงนี้
           type: "เบิก-จ่าย",
@@ -95,6 +98,9 @@ function History() {
         const borrow = borrowData.map((item) => ({
           ...item,
           id: item.borrowID,
+          date: item.borrowDate,            // <-- เพิ่มตรงนี้
+          approveBy: item.approveBy,  // <-- เพิ่มตรงนี้
+          approveDate: item.approveDate, // <-- เพิ่มตรงนี้
           statusID: item.statusID,
           statusName: item.statusName,   // <-- และตรงนี้
           type: "ยืม-คืน",
@@ -378,6 +384,14 @@ function History() {
                 <Typography><b>วันรับของ:</b> {formatDateOnly(selectedDetail.receiveDate)}</Typography>
                 <Typography><b>วันรับคืน:</b> {formatDateOnly(selectedDetail.returnDate)}</Typography>
                 <Typography><b>สถานะ:</b> {selectedDetail.statusName || "-"}</Typography>  {/* <-- แก้ตรงนี้ */}
+                {/* ✅ เพิ่มผู้อนุมัติและวันที่อนุมัติ */}
+                <Typography>
+                <b>ผู้อนุมัติ:</b> {selectedDetail.approveBy || "-"}
+                </Typography>
+                <Typography>
+                <b>วันที่อนุมัติ:</b> {formatDateOnly(selectedDetail.approveDate)}
+                </Typography>
+                <Typography><b>หมายเหตุ:</b> {selectedDetail.note}</Typography>
                 {selectedDetail.details?.length > 0 ? (
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="subtitle1" gutterBottom>รายการสินค้า</Typography>
