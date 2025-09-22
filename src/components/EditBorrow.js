@@ -21,6 +21,13 @@ import {
   Snackbar,
   Alert,
   TablePagination,
+  FormControl,
+  InputLabel,
+  Select,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -38,6 +45,7 @@ function EditBorrow() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const [equipment, setEquipment] = useState([]);
+  const [units, setUnits] = useState([]);
   const [open, setOpen] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertSeverity, setAlertSeverity] = useState("info");
@@ -58,17 +66,29 @@ function EditBorrow() {
   const [newEquipUnit, setNewEquipUnit] = useState("");
   const [editingEquipments, setEditingEquipments] = useState({});
   const [statusOptions, setStatusOptions] = useState([]);
-
-  // ✅ state สำหรับค้นหา
   const [searchTerm, setSearchTerm] = useState("");
 
-  // โหลดรายการสถานะจาก API
+  // 🔹 Dialog เพิ่มหน่วยใหม่
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
+  const [newUnitName, setNewUnitName] = useState("");
+
+  // โหลดสถานะ
   useEffect(() => {
     fetch("http://localhost:4000/api/equip-status")
       .then((res) => res.json())
       .then((data) => setStatusOptions(data))
       .catch(() => setStatusOptions([]));
   }, []);
+
+  // โหลดหน่วย
+  const loadUnits = () => {
+    fetch("http://localhost:4000/api/units")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status) setUnits(data.data);
+      })
+      .catch(() => setUnits([]));
+  };
 
   const loadEquipment = () => {
     fetch("http://localhost:4000/api/equipment")
@@ -82,7 +102,7 @@ function EditBorrow() {
             editState[item.equipmentID] = {
               equipmentName: item.equipmentName,
               amount: item.amount,
-              unit: item.unit, // ✅ เก็บค่า unit
+              unitID: item.unitID,
               equipstatusID:
                 item.equipstatusID !== undefined ? item.equipstatusID : 1,
             };
@@ -95,6 +115,7 @@ function EditBorrow() {
 
   useEffect(() => {
     loadEquipment();
+    loadUnits();
   }, []);
 
   useEffect(() => {
@@ -140,22 +161,8 @@ function EditBorrow() {
   const handleSaveEdit = (equipmentID) => {
     const edited = editingEquipments[equipmentID];
     const trimmedName = edited.equipmentName.trim();
-    const trimmedUnit = edited.unit.trim();
 
-    const duplicate = equipment.some(
-      (item) =>
-        item.equipmentID !== equipmentID &&
-        item.equipmentName.toLowerCase() === trimmedName.toLowerCase()
-    );
-
-    if (duplicate) {
-      setAlertMsg("ไม่สามารถแก้ไขเป็นชื่อที่ซ้ำกับอุปกรณ์อื่นได้");
-      setAlertSeverity("error");
-      setOpen(true);
-      return;
-    }
-
-    if (!trimmedName || edited.amount < 0) {
+    if (!trimmedName || edited.amount < 0 || !edited.unitID) {
       setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ให้ถูกต้อง");
       setAlertSeverity("error");
       setOpen(true);
@@ -171,7 +178,7 @@ function EditBorrow() {
       body: JSON.stringify({
         equipmentName: trimmedName,
         amount: edited.amount,
-        unit: trimmedUnit, // ✅ ส่ง unit ไปด้วย
+        unitID: edited.unitID,
         equipstatusID: edited.equipstatusID,
       }),
     })
@@ -224,19 +231,9 @@ function EditBorrow() {
 
   const handleAddNewEquipment = () => {
     const trimmedName = newEquipName.trim();
-    const trimmedUnit = newEquipUnit.trim();
-    if (!trimmedName || Number(newEquipAmount) < 0 || !trimmedUnit) {
-      setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ใหม่ให้ถูกต้อง");
-      setAlertSeverity("error");
-      setOpen(true);
-      return;
-    }
 
-    const duplicate = equipment.some(
-      (item) => item.equipmentName.toLowerCase() === trimmedName.toLowerCase()
-    );
-    if (duplicate) {
-      setAlertMsg("ไม่สามารถเพิ่มอุปกรณ์ที่มีชื่อซ้ำกันได้");
+    if (!trimmedName || Number(newEquipAmount) < 0 || !newEquipUnit) {
+      setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ใหม่ให้ถูกต้อง");
       setAlertSeverity("error");
       setOpen(true);
       return;
@@ -251,7 +248,7 @@ function EditBorrow() {
       body: JSON.stringify({
         equipmentName: trimmedName,
         amount: Number(newEquipAmount),
-        unit: trimmedUnit, // ✅ ส่ง unit ไปด้วย
+        unitID: newEquipUnit,
         equipstatusID: 1,
         typeID: 2,
       }),
@@ -288,7 +285,6 @@ function EditBorrow() {
     setPage(newPage);
   };
 
-  // ✅ filter อุปกรณ์ตาม searchTerm (ชื่อ + จำนวน)
   const filteredEquipment = equipment.filter((item) => {
     const term = searchTerm.toLowerCase();
     return (
@@ -296,6 +292,11 @@ function EditBorrow() {
       item.amount.toString().includes(term)
     );
   });
+
+  const getUnitName = (unitID) => {
+    const unit = units.find((u) => u.unitID === unitID);
+    return unit ? unit.unitName : "-";
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -358,7 +359,8 @@ function EditBorrow() {
           <Typography variant="h5" gutterBottom>
             รายการโสตทัศนูปกรณ์
           </Typography>
- {/* ✅ Search Bar */}
+
+          {/* ✅ Search */}
           <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
             <TextField
               label="ค้นหาอุปกรณ์"
@@ -370,7 +372,7 @@ function EditBorrow() {
             />
           </Box>
 
-
+          {/* ✅ เพิ่มอุปกรณ์ใหม่ */}
           {isAdmin && (
             <Paper sx={{ p: 2, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
@@ -378,7 +380,7 @@ function EditBorrow() {
               </Typography>
               <Stack spacing={2} direction="row" alignItems="center">
                 <TextField
-                  label="ชื่ออุปกรณ์(หน่วย)"
+                  label="ชื่ออุปกรณ์"
                   value={newEquipName}
                   onChange={(e) => setNewEquipName(e.target.value)}
                   sx={{ flexGrow: 1 }}
@@ -391,12 +393,28 @@ function EditBorrow() {
                   onChange={(e) => setNewEquipAmount(e.target.value)}
                   sx={{ width: 120 }}
                 />
-                <TextField
-                                  label="หน่วย"
-                                  value={newEquipUnit}
-                                  onChange={(e) => setNewEquipUnit(e.target.value)}
-                                  sx={{ width: 120 }}
-                />
+                <FormControl sx={{ width: 150 }}>
+                  <InputLabel>หน่วย</InputLabel>
+                  <Select
+                    native
+                    value={newEquipUnit}
+                    onChange={(e) => {
+                      if (e.target.value === "add_new_unit") {
+                        setUnitDialogOpen(true);
+                      } else {
+                        setNewEquipUnit(e.target.value);
+                      }
+                    }}
+                  >
+                    <option aria-label="None" value="" />
+                    {units.map((unit) => (
+                      <option key={unit.unitID} value={unit.unitID}>
+                        {unit.unitName}
+                      </option>
+                    ))}
+                    <option value="add_new_unit">➕ เพิ่มหน่วยใหม่</option>
+                  </Select>
+                </FormControl>
                 <Button
                   variant="contained"
                   color="primary"
@@ -408,6 +426,7 @@ function EditBorrow() {
             </Paper>
           )}
 
+          {/* ✅ ตารางอุปกรณ์ */}
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -463,26 +482,38 @@ function EditBorrow() {
                             sx={{ width: 80 }}
                           />
                         ) : (
-                          Math.max(
-                            item.amount - (requestAmounts[item.equipmentID] || 0),
-                            0
-                          )
+                          item.amount
                         )}
                       </TableCell>
-                       <TableCell>
-                                              {isAdmin ? (
-                                                <TextField
-                                                  variant="standard"
-                                                  value={editingEquipments[item.equipmentID]?.unit || ""}
-                                                  onChange={(e) =>
-                                                    handleEditChange(item.equipmentID, "unit", e.target.value)
-                                                  }
-                                                  sx={{ width: 80 }}
-                                                />
-                                              ) : (
-                                                item.unit
-                                              )}
-                                            </TableCell>
+                      <TableCell>
+                        {isAdmin ? (
+                          <FormControl variant="standard" sx={{ minWidth: 100 }}>
+                            <Select
+                              native
+                              value={
+                                editingEquipments[item.equipmentID]?.unitID || ""
+                              }
+                              onChange={(e) =>
+                                handleEditChange(
+                                  item.equipmentID,
+                                  "unitID",
+                                  e.target.value
+                                )
+                              }
+                            >
+                              <option aria-label="None" value="" />
+                              {units.map((unit) => (
+                                <option key={unit.unitID} value={unit.unitID}>
+                                  {unit.unitName}
+                                </option>
+                              ))}
+                              <option value="add_new_unit">➕ เพิ่มหน่วยใหม่</option>
+                            </Select>
+                          </FormControl>
+                        ) : (
+                          getUnitName(item.unitID)
+                        )}
+                      </TableCell>
                       <TableCell>
                         {isAdmin ? (
                           <TextField
@@ -542,7 +573,7 @@ function EditBorrow() {
             </Table>
             <TablePagination
               component="div"
-              count={filteredEquipment.length} // ✅ ใช้รายการที่ถูก filter แล้ว
+              count={filteredEquipment.length}
               page={page}
               onPageChange={handleChangePage}
               rowsPerPage={rowsPerPage}
@@ -550,6 +581,60 @@ function EditBorrow() {
             />
           </TableContainer>
         </Box>
+
+        {/* ✅ Dialog เพิ่มหน่วยใหม่ */}
+        <Dialog open={unitDialogOpen} onClose={() => setUnitDialogOpen(false)}>
+          <DialogTitle>เพิ่มหน่วยใหม่</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="ชื่อหน่วย"
+              fullWidth
+              value={newUnitName}
+              onChange={(e) => setNewUnitName(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setUnitDialogOpen(false)}>ยกเลิก</Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                if (!newUnitName.trim()) return;
+                fetch("http://localhost:4000/api/add-unit", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ unitName: newUnitName.trim() }),
+                })
+                  .then((res) => res.json())
+                  .then((data) => {
+                    if (data.status) {
+                      setAlertMsg("เพิ่มหน่วยใหม่สำเร็จ");
+                      setAlertSeverity("success");
+                      setOpen(true);
+                      loadUnits();
+                      setNewEquipUnit(data.unitID);
+                    } else {
+                      setAlertMsg("ไม่สามารถเพิ่มหน่วยได้");
+                      setAlertSeverity("error");
+                      setOpen(true);
+                    }
+                  })
+                  .catch(() => {
+                    setAlertMsg("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+                    setAlertSeverity("error");
+                    setOpen(true);
+                  })
+                  .finally(() => {
+                    setUnitDialogOpen(false);
+                    setNewUnitName("");
+                  });
+              }}
+            >
+              บันทึก
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Snackbar
           open={open}

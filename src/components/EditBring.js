@@ -21,6 +21,13 @@ import {
   Snackbar,
   Alert,
   TablePagination,
+  Select,
+  FormControl,
+  InputLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -38,10 +45,10 @@ function EditBring() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const [equipment, setEquipment] = useState([]);
+  const [units, setUnits] = useState([]);
   const [open, setOpen] = useState(false);
   const [alertMsg, setAlertMsg] = useState("");
   const [alertSeverity, setAlertSeverity] = useState("info");
-  const [requestAmounts, setRequestAmounts] = useState({});
   const [page, setPage] = useState(0);
   const rowsPerPage = 10;
   const navigate = useNavigate();
@@ -57,9 +64,13 @@ function EditBring() {
   const [newEquipAmount, setNewEquipAmount] = useState("");
   const [newEquipUnit, setNewEquipUnit] = useState("");
   const [editingEquipments, setEditingEquipments] = useState({});
-
   const [searchTerm, setSearchTerm] = useState("");
 
+  // 🔹 Dialog เพิ่มหน่วยใหม่
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
+  const [newUnitName, setNewUnitName] = useState("");
+
+  // โหลดข้อมูลอุปกรณ์
   const loadEquipment = () => {
     fetch("http://localhost:4000/api/equipment")
       .then((res) => res.json())
@@ -73,7 +84,7 @@ function EditBring() {
             editState[item.equipmentID] = {
               equipmentName: item.equipmentName,
               amount: item.amount,
-              unit: item.unit, // ✅ เก็บค่า unit
+              unitID: item.unitID,
             };
           });
           setEditingEquipments(editState);
@@ -82,8 +93,19 @@ function EditBring() {
       .catch(() => setEquipment([]));
   };
 
+  // โหลดหน่วย
+  const loadUnits = () => {
+    fetch("http://localhost:4000/api/units")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.status) setUnits(data.data);
+      })
+      .catch(() => setUnits([]));
+  };
+
   useEffect(() => {
     loadEquipment();
+    loadUnits();
   }, []);
 
   useEffect(() => {
@@ -123,11 +145,10 @@ function EditBring() {
     }));
   };
 
-  // 🔹 แก้ไขอุปกรณ์
+  // 🔹 บันทึกการแก้ไขอุปกรณ์
   const handleSaveEdit = (equipmentID) => {
     const edited = editingEquipments[equipmentID];
     const trimmedName = edited.equipmentName.trim();
-    const trimmedUnit = edited.unit.trim();
 
     const duplicate = equipment.some(
       (item) =>
@@ -142,7 +163,7 @@ function EditBring() {
       return;
     }
 
-    if (!trimmedName || edited.amount < 0 || !trimmedUnit) {
+    if (!trimmedName || edited.amount < 0 || !edited.unitID) {
       setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ให้ถูกต้อง");
       setAlertSeverity("error");
       setOpen(true);
@@ -158,7 +179,7 @@ function EditBring() {
       body: JSON.stringify({
         equipmentName: trimmedName,
         amount: edited.amount,
-        unit: trimmedUnit, // ✅ ส่ง unit ไปด้วย
+        unitID: edited.unitID,
       }),
     })
       .then((res) => res.json())
@@ -187,9 +208,7 @@ function EditBring() {
 
     fetch(`http://localhost:4000/api/delete-equipment/${equipmentID}`, {
       method: "DELETE",
-      headers: {
-        "x-user-role": roleID.toString(),
-      },
+      headers: { "x-user-role": roleID.toString() },
     })
       .then((res) => res.json())
       .then((data) => {
@@ -214,9 +233,8 @@ function EditBring() {
   // 🔹 เพิ่มอุปกรณ์ใหม่
   const handleAddNewEquipment = () => {
     const trimmedName = newEquipName.trim();
-    const trimmedUnit = newEquipUnit.trim();
 
-    if (!trimmedName || Number(newEquipAmount) < 0 || !trimmedUnit) {
+    if (!trimmedName || Number(newEquipAmount) < 0 || !newEquipUnit) {
       setAlertMsg("กรุณากรอกข้อมูลอุปกรณ์ใหม่ให้ถูกต้อง");
       setAlertSeverity("error");
       setOpen(true);
@@ -242,7 +260,7 @@ function EditBring() {
       body: JSON.stringify({
         equipmentName: trimmedName,
         amount: Number(newEquipAmount),
-        unit: trimmedUnit,
+        unitID: newEquipUnit,
         typeID: 1,
       }),
     })
@@ -286,16 +304,21 @@ function EditBring() {
     );
   });
 
+  const getUnitName = (unitID) => {
+    const unit = units.find((u) => u.unitID === unitID);
+    return unit ? unit.unitName : "-";
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
+        {/* 🔹 AppBar */}
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
             <IconButton
               color="inherit"
               onClick={() => navigate("/bring")}
               sx={{ mr: 2 }}
-              aria-label="ย้อนกลับ"
             >
               <ArrowBackIcon />
             </IconButton>
@@ -344,10 +367,7 @@ function EditBring() {
         </AppBar>
 
         <Box sx={{ maxWidth: 900, mx: "auto", mt: 6, p: 2 }}>
-          <Typography variant="h5" gutterBottom>
-            รายการอุปกรณ์สำนักงาน
-          </Typography>
-
+          {/* ✅ Search Bar (อยู่เหนือเพิ่มอุปกรณ์ใหม่) */}
           <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
             <TextField
               label="ค้นหาอุปกรณ์"
@@ -359,6 +379,7 @@ function EditBring() {
             />
           </Box>
 
+          {/* ✅ เพิ่มอุปกรณ์ใหม่ */}
           {isAdmin && (
             <Paper sx={{ p: 2, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
@@ -379,12 +400,28 @@ function EditBring() {
                   onChange={(e) => setNewEquipAmount(e.target.value)}
                   sx={{ width: 120 }}
                 />
-                <TextField
-                  label="หน่วย"
-                  value={newEquipUnit}
-                  onChange={(e) => setNewEquipUnit(e.target.value)}
-                  sx={{ width: 120 }}
-                />
+                <FormControl sx={{ width: 150 }}>
+                  <InputLabel>หน่วย</InputLabel>
+                  <Select
+                    native
+                    value={newEquipUnit}
+                    onChange={(e) => {
+                      if (e.target.value === "add_new_unit") {
+                        setUnitDialogOpen(true);
+                      } else {
+                        setNewEquipUnit(e.target.value);
+                      }
+                    }}
+                  >
+                    <option aria-label="None" value="" />
+                    {units.map((unit) => (
+                      <option key={unit.unitID} value={unit.unitID}>
+                        {unit.unitName}
+                      </option>
+                    ))}
+                    <option value="add_new_unit">➕ เพิ่มหน่วยใหม่</option>
+                  </Select>
+                </FormControl>
                 <Button
                   variant="contained"
                   color="primary"
@@ -396,6 +433,7 @@ function EditBring() {
             </Paper>
           )}
 
+          {/* ✅ ตารางอุปกรณ์ */}
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -416,8 +454,8 @@ function EditBring() {
                           <TextField
                             variant="standard"
                             value={
-                              editingEquipments[item.equipmentID]
-                                ?.equipmentName || ""
+                              editingEquipments[item.equipmentID]?.equipmentName ||
+                              ""
                             }
                             onChange={(e) =>
                               handleEditChange(
@@ -437,9 +475,7 @@ function EditBring() {
                             variant="standard"
                             type="number"
                             inputProps={{ min: 0 }}
-                            value={
-                              editingEquipments[item.equipmentID]?.amount || 0
-                            }
+                            value={editingEquipments[item.equipmentID]?.amount || 0}
                             onChange={(e) =>
                               handleEditChange(
                                 item.equipmentID,
@@ -450,24 +486,34 @@ function EditBring() {
                             sx={{ width: 80 }}
                           />
                         ) : (
-                          Math.max(
-                            item.amount - (requestAmounts[item.equipmentID] || 0),
-                            0
-                          )
+                          item.amount
                         )}
                       </TableCell>
                       <TableCell>
                         {isAdmin ? (
-                          <TextField
-                            variant="standard"
-                            value={editingEquipments[item.equipmentID]?.unit || ""}
-                            onChange={(e) =>
-                              handleEditChange(item.equipmentID, "unit", e.target.value)
-                            }
-                            sx={{ width: 80 }}
-                          />
+                          <FormControl variant="standard" sx={{ minWidth: 100 }}>
+                            <Select
+                              native
+                              value={editingEquipments[item.equipmentID]?.unitID || ""}
+                              onChange={(e) =>
+                                handleEditChange(
+                                  item.equipmentID,
+                                  "unitID",
+                                  e.target.value
+                                )
+                              }
+                            >
+                              <option aria-label="None" value="" />
+                              {units.map((unit) => (
+                                <option key={unit.unitID} value={unit.unitID}>
+                                  {unit.unitName}
+                                </option>
+                              ))}
+                              <option value="add_new_unit">➕ เพิ่มหน่วยใหม่</option>
+                            </Select>
+                          </FormControl>
                         ) : (
-                          item.unit
+                          getUnitName(item.unitID)
                         )}
                       </TableCell>
                       {isAdmin && (
@@ -508,12 +554,61 @@ function EditBring() {
           </TableContainer>
         </Box>
 
-        <Snackbar
-          open={open}
-          autoHideDuration={2500}
-          onClose={handleClose}
-          anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        >
+        {/* ✅ Dialog เพิ่มหน่วยใหม่ */}
+        <Dialog open={unitDialogOpen} onClose={() => setUnitDialogOpen(false)}>
+          <DialogTitle>เพิ่มหน่วยใหม่</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="ชื่อหน่วย"
+              fullWidth
+              value={newUnitName}
+              onChange={(e) => setNewUnitName(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setUnitDialogOpen(false)}>ยกเลิก</Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                if (!newUnitName.trim()) return;
+                fetch("http://localhost:4000/api/add-unit", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ unitName: newUnitName.trim() }),
+                })
+                  .then((res) => res.json())
+                  .then((data) => {
+                    if (data.status) {
+                      setAlertMsg("เพิ่มหน่วยใหม่สำเร็จ");
+                      setAlertSeverity("success");
+                      setOpen(true);
+                      loadUnits();
+                      setNewEquipUnit(data.unitID);
+                    } else {
+                      setAlertMsg("ไม่สามารถเพิ่มหน่วยได้");
+                      setAlertSeverity("error");
+                      setOpen(true);
+                    }
+                  })
+                  .catch(() => {
+                    setAlertMsg("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+                    setAlertSeverity("error");
+                    setOpen(true);
+                  })
+                  .finally(() => {
+                    setUnitDialogOpen(false);
+                    setNewUnitName("");
+                  });
+              }}
+            >
+              บันทึก
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar open={open} autoHideDuration={2500} onClose={handleClose}>
           <Alert severity={alertSeverity} sx={{ width: "100%" }}>
             {alertMsg}
           </Alert>

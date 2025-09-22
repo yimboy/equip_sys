@@ -65,9 +65,9 @@ function ApproveBorrow() {
       case 0: return "default"; // รอดำเนินการ
       case 1: return "success"; // อนุมัติ
       case 9: return "success"; // รับของสำเร็จ
+      case 7: return "warning"; // ติดตามอุปกรณ์
       case 2: return "error";   // ไม่อนุมัติ
       case 3: return "success"; // ส่งคืนสำเร็จ
-      case 7: return "warning"; // ค้างคืน
       case 8: return "default"; // รอตรวจสอบ
       default: return "default";
     }
@@ -112,14 +112,19 @@ function ApproveBorrow() {
   const handleProfile = () => { handleMenuClose(); navigate("/profile"); };
   const handleClose = (_, reason) => { if (reason !== "clickaway") setOpen(false); };
 
-  // อัปเดตสถานะ (อนุมัติ / รับของ)
+  // อัปเดตสถานะ
   const handleUpdateStatus = (borrowID, currentStatus) => {
     let newStatus = null;
     if (currentStatus === 0) newStatus = 1; // อนุมัติ
     else if (currentStatus === 1) newStatus = 9; // รับของ
+    else if (currentStatus === 9) newStatus = 7; // ✅ ติดตามอุปกรณ์
     else return;
 
-    const confirmMsg = newStatus === 1 ? "ยืนยันการอนุมัติการยืม?" : "ยืนยันการรับของแล้ว?";
+    const confirmMsg =
+      newStatus === 1 ? "ยืนยันการอนุมัติการยืม?" :
+      newStatus === 9 ? "ยืนยันการรับของแล้ว?" :
+      "เปลี่ยนเป็นติดตามอุปกรณ์?";
+
     if (!window.confirm(confirmMsg)) return;
 
     fetch("http://localhost:4000/api/update-borrow-status", {
@@ -164,7 +169,7 @@ function ApproveBorrow() {
       });
   };
 
-  // ส่งคืนพร้อม note
+  // ส่งคืน
   const handleReturnClick = (borrowID) => {
     setPendingBorrowID(borrowID);
     setNoteText("");
@@ -237,9 +242,7 @@ function ApproveBorrow() {
               </TableHead>
               <TableBody>
                 {borrowList.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center">ไม่พบข้อมูล</TableCell>
-                  </TableRow>
+                  <TableRow><TableCell colSpan={7} align="center">ไม่พบข้อมูล</TableCell></TableRow>
                 ) : borrowList.map((item, idx) => (
                   <TableRow key={idx}>
                     <TableCell>{formatDateOnly(item.borrowDate)}</TableCell>
@@ -250,14 +253,18 @@ function ApproveBorrow() {
                     <TableCell><Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>รายละเอียด</Button></TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={1}>
-                        {(item.statusID === 0 || item.statusID === 1) && (
+                        {(item.statusID === 0 || item.statusID === 1 || item.statusID === 9) && (
                           <Button
                             size="small"
                             variant="contained"
-                            color={item.statusID === 0 ? "success" : "primary"}
+                            color={
+                              item.statusID === 0 ? "success" :
+                              item.statusID === 1 ? "primary" : "warning"
+                            }
                             onClick={() => handleUpdateStatus(item.borrowID, item.statusID)}
                           >
-                            {item.statusID === 0 ? "อนุมัติ" : "รับของ"}
+                            {item.statusID === 0 ? "อนุมัติ" :
+                             item.statusID === 1 ? "รับของ" : "ติดตาม"}
                           </Button>
                         )}
                         {item.statusID === 8 && (
@@ -275,6 +282,7 @@ function ApproveBorrow() {
           </TableContainer>
         </Box>
 
+        {/* Dialog รายละเอียด */}
         <Dialog open={detailOpen} onClose={handleDetailClose} maxWidth="sm" fullWidth>
           <DialogTitle>รายละเอียดการยืม-คืน</DialogTitle>
           <DialogContent dividers>
@@ -295,6 +303,7 @@ function ApproveBorrow() {
           <DialogActions><Button onClick={handleDetailClose}>ปิด</Button></DialogActions>
         </Dialog>
 
+        {/* Dialog หมายเหตุ */}
         <Dialog open={noteOpen} onClose={() => setNoteOpen(false)} maxWidth="sm" fullWidth>
           <DialogTitle>กรอกหมายเหตุการส่งคืน</DialogTitle>
           <DialogContent dividers>

@@ -292,7 +292,7 @@ function Bring() {
                           0
                         )}
                       </TableCell>
-                      <TableCell>{item.unit}</TableCell>
+                      <TableCell>{item.unitName}</TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Button

@@ -73,10 +73,9 @@ function History() {
     }
   };
 
-  // ✅ แก้ timezone เพี้ยน
   const formatDateOnly = (dateStr) => {
     if (!dateStr) return "-";
-    return dateStr.slice(0, 10);  // ดึงแค่ YYYY-MM-DD
+    return dateStr.slice(0, 10);
   };
 
   const loadHistory = () => {
@@ -88,21 +87,21 @@ function History() {
         const bring = bringData.map((item) => ({
           ...item,
           id: item.bringID,
-          date: item.bringDate,            // <-- เพิ่มตรงนี้
-          approveBy: item.approveBy,  // <-- เพิ่มตรงนี้
-          approveDate: item.approveDate, // <-- เพิ่มตรงนี้
+          date: item.bringDate,
+          approveBy: item.approveByName || "-",
+          approveDate: item.approveDate,
           statusID: item.statusID,
-          statusName: item.statusName,   // <-- เพิ่มตรงนี้
+          statusName: item.statusName,
           type: "เบิก-จ่าย",
         }));
         const borrow = borrowData.map((item) => ({
           ...item,
           id: item.borrowID,
-          date: item.borrowDate,            // <-- เพิ่มตรงนี้
-          approveBy: item.approveBy,  // <-- เพิ่มตรงนี้
-          approveDate: item.approveDate, // <-- เพิ่มตรงนี้
+          date: item.borrowDate,
+          approveBy: item.approveByName || "-",
+          approveDate: item.approveDate,
           statusID: item.statusID,
-          statusName: item.statusName,   // <-- และตรงนี้
+          statusName: item.statusName,
           type: "ยืม-คืน",
         }));
         setHistory([...bring, ...borrow]);
@@ -214,63 +213,71 @@ function History() {
     if (!selectedDetail) return;
 
     const equipmentRows = selectedDetail.details?.map(
-      (item) =>
+      (item, idx) =>
         `<tr>
+          <td style="text-align:center;">${idx + 1}</td>
           <td>${item.equipmentName}</td>
           <td style="text-align:center;">${item.amount}</td>
         </tr>`
-    ).join("") || "<tr><td colspan='2'>ไม่มีรายการอุปกรณ์</td></tr>";
+    ).join("") || "<tr><td colspan='3'>ไม่มีรายการอุปกรณ์</td></tr>";
 
     const printContent = `
       <html>
         <head>
           <title>รายละเอียดรายการ</title>
           <style>
-            body { font-family: Kanit, Arial, sans-serif; padding: 20px; }
-            h2 { margin-bottom: 20px; }
-            p { font-size: 16px; margin: 8px 0; }
-            b { font-weight: 600; }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 20px;
-            }
-            th, td {
-              border: 1px solid #888;
-              padding: 8px;
-              text-align: left;
-            }
-            th {
-              background-color: #f0f0f0;
-            }
+            body { font-family: Kanit, Arial, sans-serif; padding: 30px; background: #fff; color: #333; }
+            h1 { text-align: center; color: #1976d2; margin-bottom: 20px; }
+            h2 { text-align: center; margin-bottom: 20px; color: #1976d2; }
+            .section { margin-bottom: 15px; padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; }
+            .section p { margin: 6px 0; font-size: 15px; }
+            b { color: #444; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 15px; }
+            th, td { border: 1px solid #aaa; padding: 8px; }
+            th { background: #1976d2; color: #fff; text-align: center; }
+            td { background: #fff; }
+            .footer { margin-top: 25px; font-size: 14px; text-align: center; color: #666; }
           </style>
         </head>
         <body>
-          <h2>รายละเอียดรายการ</h2>
-          <p><b>ชื่อผู้ใช้งาน:</b> ${firstname} ${lastname}</p>
-          <p><b>วันที่ทำรายการ:</b> ${formatDateOnly(selectedDetail.date)}</p>
-          <p><b>ประเภท:</b> ${selectedDetail.type}</p>
-          <p><b>วันรับของ:</b> ${formatDateOnly(selectedDetail.receiveDate)}</p>
-          <p><b>วันรับคืน:</b> ${formatDateOnly(selectedDetail.returnDate)}</p>
-          <p><b>สถานะ:</b> ${selectedDetail.statusName || "-"}</p>
+          <h1>ระบบเบิก-ยืมอุปกรณ์</h1>
 
-          <h3>รายการอุปกรณ์</h3>
+          <h2>รายละเอียดรายการอุปกรณ์</h2>
+
+          <div class="section">
+            <p><b>ชื่อผู้ใช้งาน:</b> ${firstname} ${lastname}</p>
+            <p><b>วันที่ทำรายการ:</b> ${formatDateOnly(selectedDetail.date)}</p>
+            <p><b>ประเภท:</b> ${selectedDetail.type}</p>
+            <p><b>วันรับของ:</b> ${formatDateOnly(selectedDetail.receiveDate)}</p>
+            <p><b>วันรับคืน:</b> ${formatDateOnly(selectedDetail.returnDate)}</p>
+            <p><b>สถานะ:</b> ${selectedDetail.statusName || "-"}</p>
+            <p><b>ผู้อนุมัติ:</b> ${selectedDetail.approveByName || "-"}</p>
+            <p><b>วันที่อนุมัติ:</b> ${formatDateOnly(selectedDetail.approveDate)}</p>
+            <p><b>หมายเหตุ:</b> ${selectedDetail.note || "-"}</p>
+          </div>
+
+          <h3>📋 รายการอุปกรณ์</h3>
           <table>
             <thead>
               <tr>
+                <th style="width:60px;">ลำดับ</th>
                 <th>ชื่ออุปกรณ์</th>
-                <th style="text-align:center;">จำนวน</th>
+                <th style="width:100px;">จำนวน</th>
               </tr>
             </thead>
             <tbody>
               ${equipmentRows}
             </tbody>
           </table>
+
+          <div class="footer">
+            <p>ระบบเบิก-ยืมอุปกรณ์ © ${new Date().getFullYear()}</p>
+          </div>
         </body>
       </html>
     `;
 
-    const printWindow = window.open("", "_blank", "width=800,height=600");
+    const printWindow = window.open("", "_blank", "width=900,height=650");
     printWindow.document.open();
     printWindow.document.write(printContent);
     printWindow.document.close();
@@ -284,6 +291,7 @@ function History() {
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
+            {/* ✅ โลโก้กลับมา + คลิกแล้วกลับ homepage */}
             <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")}>
               <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
             </IconButton>
@@ -347,7 +355,7 @@ function History() {
                       <TableCell>{formatDateOnly(item.returnDate)}</TableCell>
                       <TableCell>
                         <Chip
-                          label={item.statusName || "-"}    /* <-- แก้ตรงนี้ */
+                          label={item.statusName || "-"}
                           color={getStatusColor(item.statusID)}
                           sx={{ fontWeight: "bold" }}
                           variant="contained"
@@ -383,14 +391,9 @@ function History() {
                 <Typography><b>ประเภท:</b> {selectedDetail.type}</Typography>
                 <Typography><b>วันรับของ:</b> {formatDateOnly(selectedDetail.receiveDate)}</Typography>
                 <Typography><b>วันรับคืน:</b> {formatDateOnly(selectedDetail.returnDate)}</Typography>
-                <Typography><b>สถานะ:</b> {selectedDetail.statusName || "-"}</Typography>  {/* <-- แก้ตรงนี้ */}
-                {/* ✅ เพิ่มผู้อนุมัติและวันที่อนุมัติ */}
-                <Typography>
-                <b>ผู้อนุมัติ:</b> {selectedDetail.approveBy || "-"}
-                </Typography>
-                <Typography>
-                <b>วันที่อนุมัติ:</b> {formatDateOnly(selectedDetail.approveDate)}
-                </Typography>
+                <Typography><b>สถานะ:</b> {selectedDetail.statusName || "-"}</Typography>
+                <Typography><b>ผู้อนุมัติ:</b> {selectedDetail.approveByName || "-"}</Typography>
+                <Typography><b>วันที่อนุมัติ:</b> {formatDateOnly(selectedDetail.approveDate)}</Typography>
                 <Typography><b>หมายเหตุ:</b> {selectedDetail.note}</Typography>
                 {selectedDetail.details?.length > 0 ? (
                   <Box sx={{ mt: 2 }}>
@@ -398,6 +401,7 @@ function History() {
                     <Table size="small">
                       <TableHead>
                         <TableRow>
+                          <TableCell>ลำดับ</TableCell>
                           <TableCell>ชื่ออุปกรณ์</TableCell>
                           <TableCell>จำนวน</TableCell>
                         </TableRow>
@@ -405,6 +409,7 @@ function History() {
                       <TableBody>
                         {selectedDetail.details.map((item, idx) => (
                           <TableRow key={idx}>
+                            <TableCell>{idx + 1}</TableCell>
                             <TableCell>{item.equipmentName}</TableCell>
                             <TableCell>{item.amount}</TableCell>
                           </TableRow>

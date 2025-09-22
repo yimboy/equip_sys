@@ -206,8 +206,8 @@ function Return() {
                     row.details.map((detail, dIdx) => (
                       <TableRow key={`${row.borrowID}-${detail.equipmentID}`}>
                         <TableCell>
-                          {row.date
-                            ? new Date(row.date).toLocaleDateString()
+                          {row.borrowDate
+                            ? new Date(row.borrowDate).toLocaleDateString()
                             : "-"}
                         </TableCell>
                         <TableCell>{detail.equipmentName}</TableCell>
@@ -229,7 +229,7 @@ function Return() {
                           />
                         </TableCell>
                         <TableCell>
-                          {dIdx === 0 && row.statusID === 9 && (
+                          {dIdx === 0 && (row.statusID === 9 || row.statusID === 7) && (
                             <Button
                               variant="contained"
                               color="primary"

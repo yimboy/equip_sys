@@ -39,7 +39,7 @@ function Borrow() {
   const [anchorEl, setAnchorEl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const [equipment, setEquipment] = useState([]);
-  const [searchTerm, setSearchTerm] = useState(""); // ✅ state สำหรับค้นหา
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [idCardImg, setIdCardImg] = useState(null);
@@ -57,9 +57,10 @@ function Borrow() {
   const firstname = localStorage.getItem("firstname");
   const lastname = localStorage.getItem("lastname");
 
+  // ✅ วันรับของต้องล่วงหน้าอย่างน้อย 2 วัน
   const getMinDate = () => {
     const date = new Date();
-    date.setDate(date.getDate() + 3);
+    date.setDate(date.getDate() + 2);
     return date.toISOString().split("T")[0];
   };
 
@@ -141,14 +142,18 @@ function Borrow() {
 
   const handleConfirm = () => {
     if (!selectedDate || !returnDate || !idCardImg) {
-      setAlertMsg("กรุณากรอกวันรับของ วันรับคืน และแนบรูปบัตรประจำตัว");
+      setAlertMsg("กรุณากรอกวันรับของ วันคืน และแนบรูปบัตรประจำตัว");
       setAlertSeverity("error");
       setOpen(true);
       return;
     }
 
-    const minDate = getMinDate();
-    if (selectedDate < minDate || returnDate < selectedDate) {
+    // ✅ ตรวจสอบด้วย Date object
+    const minDate = new Date(getMinDate());
+    const startDate = new Date(selectedDate);
+    const endDate = new Date(returnDate);
+
+    if (startDate < minDate || endDate < startDate) {
       setAlertMsg(
         "วันรับของต้องล่วงหน้าอย่างน้อย 2 วัน และวันคืนต้องไม่น้อยกว่าวันรับของ"
       );
@@ -208,7 +213,7 @@ function Borrow() {
     setOpen(false);
   };
 
-  // ✅ filter อุปกรณ์ตาม searchTerm
+  // ✅ filter ตาม searchTerm
   const filteredEquipment = equipment.filter((item) =>
     item.equipmentName.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -313,24 +318,16 @@ function Borrow() {
                           0
                         )}
                       </TableCell>
-                      <TableCell>{item.unit}</TableCell>
+                      <TableCell>{item.unitName}</TableCell>
                       <TableCell>
                         {item.equipstatusID === 1 ? (
-                          <Chip
-                            label="พร้อมใช้งาน"
-                            color="success"
-                            size="small"
-                          />
+                          <Chip label="พร้อมใช้งาน" color="success" size="small" />
                         ) : item.equipstatusID === 0 ? (
                           <Chip label="ชำรุด" color="error" size="small" />
                         ) : item.equipstatusID === 2 ? (
                           <Chip label="ส่งซ่อม" color="warning" size="small" />
                         ) : (
-                          <Chip
-                            label="ไม่ทราบสถานะ"
-                            color="default"
-                            size="small"
-                          />
+                          <Chip label="ไม่ทราบสถานะ" color="default" size="small" />
                         )}
                       </TableCell>
                       <TableCell>
@@ -350,8 +347,7 @@ function Borrow() {
                             size="small"
                             onClick={() => handleIncrease(item.equipmentID)}
                             disabled={
-                              (requestAmounts[item.equipmentID] || 0) >=
-                              item.amount
+                              (requestAmounts[item.equipmentID] || 0) >= item.amount
                             }
                           >
                             +
