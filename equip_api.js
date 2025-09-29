@@ -34,7 +34,7 @@ app.get('/', function(req, res){
 //Register
 app.post('/api/register', function(req, res){
   const { username, password, firstname, lastname } = req.body;
-  const sql = 'INSERT INTO user (username, password, firstname, lastname, roleID) VALUES (?, ?, ?, ?, ?)';
+  const sql = 'INSERT INTO users (username, password, firstname, lastname, roleID) VALUES (?, ?, ?, ?, ?)';
   
   db.query(sql, [username, password, firstname, lastname, 1], 
     function(err, result) {
@@ -76,7 +76,7 @@ app.post('/api/forgot-password', (req, res) => {
     return res.status(400).json({ status: false, message: "กรุณาระบุ username และ newPassword" });
   }
 
-  const sql = "UPDATE user SET password = ? WHERE username = ?";
+  const sql = "UPDATE users SET password = ? WHERE username = ?";
   db.query(sql, [newPassword, username], (err, result) => {
     if (err) {
       console.error("❌ SQL Error:", err);
@@ -509,7 +509,6 @@ app.get('/api/history-borrow', (req, res) => {
       bo.statusID,
       s.statusName,
       bo.imageFile,
-      bo.note,
       bo.approveBy,
       u.firstname AS approveFirstname,
       u.lastname AS approveLastname
@@ -908,16 +907,16 @@ app.post("/api/update-bring-status", (req, res) => {
 
   let sql, params;
 
-  if (statusID === 1) {
-    // อนุมัติ → เก็บ approveBy + approveDate
+  if ([1, 9].includes(statusID)) {
+    // ✅ ถ้าอนุมัติ (1) หรือ รับของ (9) → เก็บ approveBy + approveDate
     sql = `
       UPDATE bring
       SET statusID = ?, approveBy = ?, approveDate = NOW()
       WHERE bringID = ?
     `;
-    params = [statusID, userID, bringID]; // ใช้ userID ของคน login เป็นผู้อนุมัติ
+    params = [statusID, userID, bringID];
   } else {
-    // กรณีอื่น ๆ ไม่เก็บ approveBy/approveDate
+    // ✅ กรณีอื่น ๆ (เช่น ยกเลิก 6) ไม่เก็บ approveBy/approveDate
     sql = `
       UPDATE bring
       SET statusID = ?
@@ -1008,10 +1007,10 @@ app.post("/api/reject-bring", (req, res) => {
 });
 
 
-//API ดึงรายการที่รออนุมัติ ยืม-คืน (จนท.กทด.)
+// ✅ API ดึงรายการที่รออนุมัติ ยืม-คืน (จนท.กทด.)
 app.get("/api/borrow-pending", async (req, res) => {
   try {
-    // 1. ดึง borrow ที่ statusID = 0, 1, 7, 8
+    // 1. ดึงข้อมูล borrow หลัก
     const sqlBorrow = `
       SELECT 
         b.borrowID,
@@ -1055,11 +1054,19 @@ app.get("/api/borrow-pending", async (req, res) => {
       return res.json({ status: true, data: [] });
     }
 
+    // 2. ดึงรายการอุปกรณ์แต่ละชิ้นของ borrow
     const borrowIDs = borrows.map(b => b.borrowID);
     const sqlItems = `
-      SELECT bd.borrowID, e.equipmentName, bd.amount
+      SELECT 
+        bd.borrowID, 
+        bd.equipmentID, 
+        e.equipmentName, 
+        bd.amount,
+        bd.statusID AS detailStatus,
+        s.statusName AS detailStatusName
       FROM borrowdetail bd
       LEFT JOIN equipments e ON bd.equipmentID = e.equipmentID
+      LEFT JOIN status s ON bd.statusID = s.statusID
       WHERE bd.borrowID IN (?)
     `;
 
@@ -1070,6 +1077,7 @@ app.get("/api/borrow-pending", async (req, res) => {
       });
     });
 
+    // 3. จัดกลุ่มข้อมูล
     const borrowMap = {};
     borrows.forEach(b => {
       borrowMap[b.borrowID] = { ...b, items: [] };
@@ -1078,8 +1086,11 @@ app.get("/api/borrow-pending", async (req, res) => {
     items.forEach(i => {
       if (borrowMap[i.borrowID]) {
         borrowMap[i.borrowID].items.push({
+          equipmentID: i.equipmentID,
           equipmentName: i.equipmentName,
           amount: i.amount,
+          detailStatusID: i.detailStatusID,
+          detailStatusName: i.detailStatusName
         });
       }
     });
@@ -1090,6 +1101,7 @@ app.get("/api/borrow-pending", async (req, res) => {
     res.status(500).json({ status: false, message: "เกิดข้อผิดพลาด", data: [] });
   }
 });
+
 
 
 //API เช็คสถานะติดตามอุปกรณ์การยืม-คืน (จนท.กทด.)
@@ -1118,7 +1130,7 @@ app.post("/api/update-overdue-borrow", async (req, res) => {
 
 
 
-// API อัพเดตสถานะยืมคืน  (จนท.กทด.)
+// ✅ API อัปเดตสถานะยืม-คืน (จนท.กทด.)
 app.post("/api/update-borrow-status", (req, res) => {
   const { borrowID, statusID, note, userID } = req.body;
 
@@ -1126,27 +1138,36 @@ app.post("/api/update-borrow-status", (req, res) => {
     return res.status(400).json({ status: false, message: "ข้อมูลไม่ครบถ้วน" });
   }
 
+  // ✅ ตรวจสอบสถานะปัจจุบันก่อน
   const sqlGet = "SELECT statusID FROM borrow WHERE borrowID = ?";
   db.query(sqlGet, [borrowID], (err, results) => {
     if (err) {
-      console.error("Error fetching borrow status:", err);
+      console.error("❌ Error fetching borrow status:", err);
       return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการดึงข้อมูล" });
     }
     if (results.length === 0) {
-      return res.status(404).json({ status: false, message: "ไม่พบรายการ" });
+      return res.status(404).json({ status: false, message: "ไม่พบรายการนี้" });
     }
 
     const currentStatus = results[0].statusID;
 
+    // ✅ ฟังก์ชันอัปเดตสถานะหลัก
     function updateBorrow(newStatus, msg, noteValue = null) {
       let sqlUpdate = "UPDATE borrow SET statusID = ?";
       const params = [newStatus];
 
+      // ✅ ถ้าเป็นการอนุมัติ → บันทึกผู้อนุมัติ + วันที่
       if (newStatus === 1) {
         sqlUpdate += ", approveBy = ?, approveDate = NOW()";
         params.push(userID);
       }
 
+      // ✅ ถ้าเป็นการส่งคืนสำเร็จ → บันทึกวันที่คืน
+      if (newStatus === 3) {
+        sqlUpdate += ", returnDate = NOW()";
+      }
+
+      // ✅ ถ้ามีหมายเหตุ
       if (noteValue) {
         sqlUpdate += ", note = ?";
         params.push(noteValue);
@@ -1157,8 +1178,8 @@ app.post("/api/update-borrow-status", (req, res) => {
 
       db.query(sqlUpdate, params, (err2, result) => {
         if (err2) {
-          console.error("Error updating borrow:", err2);
-          return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการอัปเดต" });
+          console.error("❌ Error updating borrow:", err2);
+          return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการอัปเดตสถานะ" });
         }
         if (result.affectedRows === 0) {
           return res.status(400).json({ status: false, message: "ไม่สามารถอัปเดตสถานะได้" });
@@ -1167,42 +1188,190 @@ app.post("/api/update-borrow-status", (req, res) => {
       });
     }
 
-    // ✅ เงื่อนไขเปลี่ยนสถานะ
+    // ✅ เงื่อนไขการเปลี่ยนสถานะ
     if (statusID === 1 && currentStatus === 0) {
-      return updateBorrow(statusID, "อนุมัติเรียบร้อย", note);
+      // 0 → 1 อนุมัติ
+      return updateBorrow(statusID, "✅ อนุมัติการยืมเรียบร้อย", note);
+
     } else if (statusID === 9 && currentStatus === 1) {
-      return updateBorrow(statusID, "รับของสำเร็จ", note);
+      // 1 → 9 รับของ
+      return updateBorrow(statusID, "📦 รับของสำเร็จแล้ว", note);
+
     } else if (statusID === 7 && currentStatus === 9) {
-      return updateBorrow(statusID, "เปลี่ยนสถานะเป็นติดตามอุปกรณ์", note);
+      // 9 → 7 ติดตามอุปกรณ์
+      return updateBorrow(statusID, "🔎 เปลี่ยนสถานะเป็นติดตามอุปกรณ์", note);
+
     } else if (statusID === 3 && (currentStatus === 7 || currentStatus === 8)) {
-      const sqlDetail = "SELECT equipmentID, amount FROM borrowdetail WHERE borrowID = ?";
-      db.query(sqlDetail, [borrowID], (err, details) => {
-        if (err) {
-          console.error("Error fetching borrow details:", err);
-          return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการดึงข้อมูลอุปกรณ์" });
+      // ✅ ตรวจสอบว่าคืนครบทุกชิ้นหรือยัง
+      const checkAllReturned = `
+        SELECT COUNT(*) AS notReturned
+        FROM borrowdetail
+        WHERE borrowID = ? AND (statusID IS NULL OR statusID != 3)
+      `;
+      db.query(checkAllReturned, [borrowID], (errCheck, resultCheck) => {
+        if (errCheck) {
+          console.error("❌ Error checking returned items:", errCheck);
+          return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการตรวจสอบสถานะอุปกรณ์" });
         }
 
-        const promises = details.map(item =>
-          new Promise((resolve, reject) => {
-            const sqlUpdateEq = "UPDATE equipments SET amount = amount + ? WHERE equipmentID = ?";
-            db.query(sqlUpdateEq, [item.amount, item.equipmentID], (err2) =>
-              err2 ? reject(err2) : resolve()
-            );
-          })
-        );
+        const notReturned = resultCheck[0].notReturned;
 
-        Promise.all(promises)
-          .then(() => updateBorrow(statusID, "ส่งคืนสำเร็จ", note))
-          .catch(e => {
-            console.error("Error updating equipment amounts:", e);
-            res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการคืนอุปกรณ์" });
+        if (notReturned > 0) {
+          return res.json({
+            status: false,
+            message: `❌ ยังมีอุปกรณ์ ${notReturned} รายการที่ยังไม่ได้ส่งคืนครบ`,
           });
+        }
+
+        // ✅ ดึงจำนวนที่คืนจริง (goodAmount + damagedAmount)
+        const sqlDetail = `
+          SELECT equipmentID, 
+                 COALESCE(goodAmount, 0) + COALESCE(damagedAmount, 0) AS returnedAmount
+          FROM borrowdetail
+          WHERE borrowID = ?
+        `;
+        db.query(sqlDetail, [borrowID], (errDetail, details) => {
+          if (errDetail) {
+            console.error("❌ Error fetching borrow details:", errDetail);
+            return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการดึงข้อมูลอุปกรณ์" });
+          }
+
+          // ✅ คืนจำนวนที่คืนจริงกลับเข้า stock
+          const promises = details.map(item =>
+            new Promise((resolve, reject) => {
+              const sqlUpdateEq = "UPDATE equipments SET amount = amount + ? WHERE equipmentID = ?";
+              db.query(sqlUpdateEq, [item.returnedAmount, item.equipmentID], (errUpdate) =>
+                errUpdate ? reject(errUpdate) : resolve()
+              );
+            })
+          );
+
+          Promise.all(promises)
+            .then(() => {
+              console.log("✅ คืนสต็อกอุปกรณ์สำเร็จ");
+              updateBorrow(statusID, "✅ ส่งคืนครบทุกอุปกรณ์แล้ว และสต็อกถูกอัปเดตเรียบร้อย", note);
+            })
+            .catch(e => {
+              console.error("❌ Error updating equipment stock:", e);
+              res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการคืนอุปกรณ์" });
+            });
+        });
       });
+
     } else {
-      return res.status(400).json({ status: false, message: "สถานะนี้ไม่สามารถอัปเดตได้" });
+      return res.status(400).json({ status: false, message: "❌ สถานะนี้ไม่สามารถอัปเดตได้" });
     }
   });
 });
+
+// ✅ อัปเดตสถานะแยกชิ้น + ตรวจสอบสถานะรวมของรายการ
+app.post("/api/update-borrowdetail-status", (req, res) => {
+  const { borrowID, equipmentID, statusID, goodAmount, damagedAmount, note } = req.body;
+
+  if (!borrowID || !equipmentID) {
+    return res.status(400).json({ status: false, message: "❌ ข้อมูลไม่ครบ" });
+  }
+
+  const returnedAmount = (goodAmount || 0) + (damagedAmount || 0);
+
+  const updateDetailSql = `
+    UPDATE borrowdetail
+    SET 
+      statusID = ?, 
+      goodAmount = ?, 
+      damagedAmount = ?, 
+      returnedAmount = ?, 
+      note = ?, 
+      returnDate = NOW()
+    WHERE borrowID = ? AND equipmentID = ?
+  `;
+
+  db.query(
+    updateDetailSql,
+    [statusID, goodAmount, damagedAmount, returnedAmount, note, borrowID, equipmentID],
+    (err, result) => {
+      if (err) {
+        console.error("❌ Error updating borrowdetail:", err);
+        return res.status(500).json({ status: false, message: "อัปเดต borrowdetail ไม่สำเร็จ" });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ status: false, message: "❌ ไม่พบอุปกรณ์นี้" });
+      }
+
+      // ✅ ตรวจสอบว่าทุกอุปกรณ์ในรายการนี้ statusID = 3 หรือยัง
+      const checkAllSql = `
+        SELECT 
+          COUNT(*) AS total,
+          SUM(CASE WHEN statusID = 3 THEN 1 ELSE 0 END) AS returned
+        FROM borrowdetail
+        WHERE borrowID = ?
+      `;
+
+      db.query(checkAllSql, [borrowID], (err2, rows) => {
+        if (err2) {
+          console.error("❌ Error checking borrowdetail:", err2);
+          return res.status(500).json({ status: false, message: "ตรวจสอบสถานะรวมไม่สำเร็จ" });
+        }
+
+        const { total, returned } = rows[0];
+
+        // ✅ ถ้าทุกชิ้นคืนแล้ว → อัปเดตตาราง borrow เป็น statusID = 3
+        if (total > 0 && total === returned) {
+          const updateBorrowSql = `
+            UPDATE borrow 
+            SET statusID = 3, returnDate = NOW()
+            WHERE borrowID = ?
+          `;
+          db.query(updateBorrowSql, [borrowID], (err3) => {
+            if (err3) {
+              console.error("❌ Error updating borrow:", err3);
+              return res.status(500).json({ status: false, message: "อัปเดตสถานะ borrow ไม่สำเร็จ" });
+            }
+
+            return res.json({
+              status: true,
+              message: "✅ อัปเดตสถานะสำเร็จ และรายการนี้ถูกเปลี่ยนเป็น 'ส่งคืนสำเร็จ'",
+            });
+          });
+        } else {
+          // ❗ ถ้ายังไม่ครบ แค่ตอบกลับว่าอัปเดต borrowdetail สำเร็จ
+          return res.json({
+            status: true,
+            message: "✅ อัปเดตสถานะอุปกรณ์สำเร็จ (ยังไม่ครบทุกชิ้น)",
+          });
+        }
+      });
+    }
+  );
+});
+
+// ✅ อัปเดตสถานะ borrow เป็น 3 เมื่อคืนอุปกรณ์ครบแล้ว
+app.post("/api/complete-borrow", (req, res) => {
+  const { borrowID } = req.body;
+  if (!borrowID) {
+    return res.status(400).json({ status: false, message: "❌ ไม่พบ borrowID" });
+  }
+
+  const sql = `
+    UPDATE borrow
+    SET statusID = 3, returnDate = NOW()
+    WHERE borrowID = ?
+  `;
+  db.query(sql, [borrowID], (err, result) => {
+    if (err) {
+      console.error("❌ Error updating borrow:", err);
+      return res.status(500).json({ status: false, message: "อัปเดตสถานะไม่สำเร็จ" });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ status: false, message: "❌ ไม่พบรายการนี้" });
+    }
+    return res.json({ status: true, message: "✅ เปลี่ยนสถานะรายการเป็น 'ส่งคืนสำเร็จ' แล้ว" });
+  });
+});
+
+
+
 
 
 
@@ -1471,6 +1640,78 @@ app.get("/api/notifications/:roleID", (req, res) => {
   }
 });
 
+// ✅ จำนวน bring pending
+app.get("/api/bring/pending-count", (req, res) => {
+  const sql = "SELECT COUNT(*) AS count FROM bring WHERE statusID = 0";
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).json({ status: false, message: "DB Error" });
+    res.json({ status: true, count: rows[0].count });
+  });
+});
+
+// ✅ จำนวน borrow pending
+app.get("/api/borrow/pending-count", (req, res) => {
+  const sql = "SELECT COUNT(*) AS count FROM borrow WHERE statusID = 0";
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).json({ status: false, message: "DB Error" });
+    res.json({ status: true, count: rows[0].count });
+  });
+});
+
+// ✅ API ดึงคำขอที่เพิ่งถูกอนุมัติ (แก้ชื่อให้ตรง approved ไม่ใช่ approvals)
+app.get("/api/approved/latest", (req, res) => {
+  const { userID, since } = req.query;
+  if (!userID) return res.status(400).json({ status: false, message: "ต้องระบุ userID" });
+
+  const sql = `
+    SELECT borrowID AS refID, 'borrow' AS type, statusID, approveDate
+    FROM borrow
+    WHERE userID = ? AND statusID = 1 AND approveDate IS NOT NULL AND UNIX_TIMESTAMP(approveDate) > ?
+    UNION
+    SELECT bringID AS refID, 'bring' AS type, statusID, approveDate
+    FROM bring
+    WHERE userID = ? AND statusID = 1 AND approveDate IS NOT NULL AND UNIX_TIMESTAMP(approveDate) > ?
+    ORDER BY approveDate DESC
+  `;
+
+  db.query(sql, [userID, since || 0, userID, since || 0], (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ status: false, message: "DB Error" });
+    }
+    res.json({ status: true, items: rows });
+  });
+});
+
+
+// ✅ API สำหรับเจ้าหน้าที่ roleID=3: มีคำขอคืนค้างอยู่
+app.get("/api/returns/pending-count", (req, res) => {
+  const sql = "SELECT COUNT(*) AS count FROM borrow WHERE statusID = 7 OR statusID = 8";
+  db.query(sql, (err, rows) => {
+    if (err) return res.status(500).json({ status: false, message: "DB Error" });
+    res.json({ status: true, count: rows[0].count });
+  });
+});
+
+// ✅ API ดึงข้อมูลการคืนที่เสร็จสิ้น
+app.get("/api/returns/approved-latest", (req, res) => {
+  const { userID, since } = req.query;
+  if (!userID) return res.status(400).json({ status: false, message: "ต้องระบุ userID" });
+
+  const sql = `
+    SELECT borrowID AS refID, 'return' AS type, statusID, returnDate AS at
+    FROM borrow
+    WHERE userID = ? AND statusID = 3 AND returnDate IS NOT NULL AND UNIX_TIMESTAMP(returnDate) > ?
+    ORDER BY returnDate DESC
+  `;
+  db.query(sql, [userID, since || 0], (err, rows) => {
+    if (err) {
+      console.error("Error fetching return approved:", err);
+      return res.status(500).json({ status: false, message: "DB Error" });
+    }
+    res.json({ status: true, items: rows });
+  });
+});
 
 
 //Web sever

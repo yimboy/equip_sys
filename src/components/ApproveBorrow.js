@@ -45,12 +45,12 @@ function ApproveBorrow() {
   const [alertMsg, setAlertMsg] = useState("");
   const [alertSeverity, setAlertSeverity] = useState("info");
 
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [selectedDetail, setSelectedDetail] = useState(null);
-
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [noteText, setNoteText] = useState("");
-  const [pendingBorrowID, setPendingBorrowID] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedBorrow, setSelectedBorrow] = useState(null);
+  const [selectedEquip, setSelectedEquip] = useState(null);
+  const [goodAmount, setGoodAmount] = useState("");
+  const [damagedAmount, setDamagedAmount] = useState("");
+  const [note, setNote] = useState("");
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
@@ -58,27 +58,34 @@ function ApproveBorrow() {
   const roleID = localStorage.getItem("roleID");
   const userID = localStorage.getItem("userID");
 
-  const formatDateOnly = (dateStr) => (dateStr ? dateStr.slice(0, 10) : "-");
-
   const getStatusColor = (statusID) => {
     switch (statusID) {
-      case 0: return "default"; // รอดำเนินการ
-      case 1: return "success"; // อนุมัติ
-      case 9: return "success"; // รับของสำเร็จ
-      case 7: return "warning"; // ติดตามอุปกรณ์
-      case 2: return "error";   // ไม่อนุมัติ
-      case 3: return "success"; // ส่งคืนสำเร็จ
-      case 8: return "default"; // รอตรวจสอบ
+      case 0: return "default";
+      case 1: return "success";
+      case 2: return "error";
+      case 3: return "success";
+      case 4: return "error";
+      case 5: return "warning";
+      case 6: return "error";
+      case 7: return "warning";
+      case 8: return "default";
+      case 9: return "success";
       default: return "default";
     }
   };
 
+  const formatDateOnly = (dateStr) => (dateStr ? dateStr.slice(0, 10) : "-");
+
+  // ✅ โหลดข้อมูล
   const loadBorrowData = () => {
     fetch("http://localhost:4000/api/borrow-pending")
       .then((res) => res.json())
       .then((data) => {
-        if (data.status) setBorrowList(data.data);
-        else setBorrowList([]);
+        if (data.status) {
+          setBorrowList(data.data);
+        } else {
+          setBorrowList([]);
+        }
       })
       .catch(() => {
         setAlertMsg("เกิดข้อผิดพลาดในการโหลดข้อมูล");
@@ -106,24 +113,33 @@ function ApproveBorrow() {
     if (!isLoggedIn) navigate("/login");
     else setAnchorEl(event.currentTarget);
   };
-
   const handleMenuClose = () => setAnchorEl(null);
-  const handleLogout = () => { localStorage.clear(); handleMenuClose(); navigate("/login"); };
-  const handleProfile = () => { handleMenuClose(); navigate("/profile"); };
-  const handleClose = (_, reason) => { if (reason !== "clickaway") setOpen(false); };
+  const handleLogout = () => {
+    localStorage.clear();
+    handleMenuClose();
+    navigate("/login");
+  };
+  const handleProfile = () => {
+    handleMenuClose();
+    navigate("/profile");
+  };
+  const handleClose = (_, reason) => {
+    if (reason !== "clickaway") setOpen(false);
+  };
 
-  // อัปเดตสถานะ
   const handleUpdateStatus = (borrowID, currentStatus) => {
     let newStatus = null;
-    if (currentStatus === 0) newStatus = 1; // อนุมัติ
-    else if (currentStatus === 1) newStatus = 9; // รับของ
-    else if (currentStatus === 9) newStatus = 7; // ✅ ติดตามอุปกรณ์
+    if (currentStatus === 0) newStatus = 1;
+    else if (currentStatus === 1) newStatus = 9;
+    else if (currentStatus === 9) newStatus = 7;
     else return;
 
     const confirmMsg =
-      newStatus === 1 ? "ยืนยันการอนุมัติการยืม?" :
-      newStatus === 9 ? "ยืนยันการรับของแล้ว?" :
-      "เปลี่ยนเป็นติดตามอุปกรณ์?";
+      newStatus === 1
+        ? "ยืนยันการอนุมัติการยืม?"
+        : newStatus === 9
+        ? "ยืนยันการรับของแล้ว?"
+        : "เปลี่ยนเป็นติดตามอุปกรณ์?";
 
     if (!window.confirm(confirmMsg)) return;
 
@@ -146,7 +162,6 @@ function ApproveBorrow() {
       });
   };
 
-  // ไม่อนุมัติ
   const handleReject = (borrowID) => {
     if (!window.confirm("ยืนยันการไม่อนุมัติการยืม-คืนนี้?")) return;
 
@@ -169,41 +184,87 @@ function ApproveBorrow() {
       });
   };
 
-  // ส่งคืน
-  const handleReturnClick = (borrowID) => {
-    setPendingBorrowID(borrowID);
-    setNoteText("");
-    setNoteOpen(true);
+  const openReturnDialog = (borrow, equip) => {
+    setSelectedBorrow(borrow);
+    setSelectedEquip(equip);
+    setGoodAmount("");
+    setDamagedAmount("");
+    setNote("");
+    setDialogOpen(true);
   };
 
   const handleConfirmReturn = () => {
-    if (!pendingBorrowID) return;
+    const total = parseInt(goodAmount || 0) + parseInt(damagedAmount || 0);
+    const maxAmount = selectedEquip.amount;
 
-    fetch("http://localhost:4000/api/update-borrow-status", {
+    if (total > maxAmount) {
+      setAlertMsg(`❌ จำนวนรวมเกิน ${maxAmount} ชิ้น กรุณาตรวจสอบอีกครั้ง`);
+      setAlertSeverity("error");
+      setOpen(true);
+      return;
+    }
+    if (total < maxAmount) {
+      setAlertMsg(`❌ จำนวนรวมต้องเท่ากับ ${maxAmount} ชิ้น`);
+      setAlertSeverity("error");
+      setOpen(true);
+      return;
+    }
+
+    fetch("http://localhost:4000/api/update-borrowdetail-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ borrowID: pendingBorrowID, statusID: 3, note: noteText, userID }),
+      body: JSON.stringify({
+        borrowID: selectedBorrow.borrowID,
+        equipmentID: selectedEquip.equipmentID,
+        statusID: 3,
+        goodAmount: parseInt(goodAmount),
+        damagedAmount: parseInt(damagedAmount),
+        note,
+      }),
     })
       .then((res) => res.json())
       .then((data) => {
-        setAlertMsg(data.message || "อัปเดตสถานะสำเร็จ");
+        setDialogOpen(false);
+        setAlertMsg(data.message || "อัปเดตสถานะอุปกรณ์สำเร็จ");
         setAlertSeverity(data.status ? "success" : "error");
         setOpen(true);
         if (data.status) loadBorrowData();
       })
       .catch(() => {
-        setAlertMsg("เกิดข้อผิดพลาดในการอัปเดตสถานะ");
+        setDialogOpen(false);
+        setAlertMsg("เกิดข้อผิดพลาดในการอัปเดตสถานะอุปกรณ์");
         setAlertSeverity("error");
         setOpen(true);
-      })
-      .finally(() => {
-        setNoteOpen(false);
-        setPendingBorrowID(null);
       });
   };
 
-  const handleDetailOpen = (item) => { setSelectedDetail(item); setDetailOpen(true); };
-  const handleDetailClose = () => { setDetailOpen(false); setSelectedDetail(null); };
+  // ✅ ตรวจว่าอุปกรณ์ทั้งหมดของรายการเป็น statusID = 3 แล้วหรือยัง
+  const isAllReturned = (borrow) => {
+    return borrow.items?.length > 0 && borrow.items.every((item) => item.detailStatusID === 3);
+  };
+
+  // ✅ กดปุ่ม “ส่งคืนสำเร็จ” เพื่อเปลี่ยนสถานะ borrow เป็น 3
+  const completeBorrow = (borrowID) => {
+    if (!window.confirm("ยืนยันว่ารายการนี้คืนอุปกรณ์ครบแล้ว?")) return;
+
+    fetch("http://localhost:4000/api/complete-borrow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ borrowID }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setAlertMsg(data.message || "อัปเดตสถานะรายการเป็นส่งคืนสำเร็จแล้ว");
+        setAlertSeverity(data.status ? "success" : "error");
+        setOpen(true);
+        if (data.status) loadBorrowData();
+      })
+      .catch(() => {
+        setAlertMsg("เกิดข้อผิดพลาดในการอัปเดตสถานะรายการ");
+        setAlertSeverity("error");
+        setOpen(true);
+      });
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -213,10 +274,20 @@ function ApproveBorrow() {
             <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")}>
               <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
             </IconButton>
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>อนุมัติการยืม-คืนอุปกรณ์</Typography>
-            {isLoggedIn && <Typography sx={{ mr: 1 }}>{firstname} {lastname}</Typography>}
+            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+              อนุมัติการยืม-คืนอุปกรณ์
+            </Typography>
+            {isLoggedIn && (
+              <Typography sx={{ mr: 1 }}>
+                {firstname} {lastname}
+              </Typography>
+            )}
             <IconButton color="inherit" edge="end" onClick={handleUserIconClick} sx={{ p: 0, ml: 1 }}>
-              {isLoggedIn && profilePic ? <Avatar src={profilePic} sx={{ width: 36, height: 36 }} /> : <AccountCircleIcon sx={{ width: 36, height: 36 }} />}
+              {isLoggedIn && profilePic ? (
+                <Avatar src={profilePic} sx={{ width: 36, height: 36 }} />
+              ) : (
+                <AccountCircleIcon sx={{ width: 36, height: 36 }} />
+              )}
             </IconButton>
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
               <MenuItem onClick={handleProfile}>จัดการข้อมูลผู้ใช้</MenuItem>
@@ -225,105 +296,196 @@ function ApproveBorrow() {
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ maxWidth: 1000, mx: "auto", mt: 6, p: 2 }}>
-          <Typography variant="h5" gutterBottom>รายการที่รออนุมัติ</Typography>
+        <Box sx={{ maxWidth: 1100, mx: "auto", mt: 6, p: 2 }}>
+          <Typography variant="h5" gutterBottom>
+            รายการที่รออนุมัติ
+          </Typography>
+
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>วันที่ยืม</TableCell>
-                  <TableCell>จำนวนรายการ</TableCell>
+                  <TableCell>ชื่ออุปกรณ์</TableCell>
+                  <TableCell>จำนวน</TableCell>
                   <TableCell>วันรับของ</TableCell>
                   <TableCell>วันส่งคืน</TableCell>
-                  <TableCell>สถานะ</TableCell>
-                  <TableCell>รายละเอียด</TableCell>
+                  <TableCell>สถานะอุปกรณ์</TableCell>
+                  <TableCell>สถานะรายการ</TableCell>
                   <TableCell>การจัดการ</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {borrowList.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} align="center">ไม่พบข้อมูล</TableCell></TableRow>
-                ) : borrowList.map((item, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell>{formatDateOnly(item.borrowDate)}</TableCell>
-                    <TableCell>{item.count}</TableCell>
-                    <TableCell>{formatDateOnly(item.receiveDate)}</TableCell>
-                    <TableCell>{formatDateOnly(item.returnDate)}</TableCell>
-                    <TableCell><Chip label={item.statusName || "-"} color={getStatusColor(item.statusID)} /></TableCell>
-                    <TableCell><Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>รายละเอียด</Button></TableCell>
-                    <TableCell>
-                      <Stack direction="row" spacing={1}>
-                        {(item.statusID === 0 || item.statusID === 1 || item.statusID === 9) && (
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color={
-                              item.statusID === 0 ? "success" :
-                              item.statusID === 1 ? "primary" : "warning"
-                            }
-                            onClick={() => handleUpdateStatus(item.borrowID, item.statusID)}
-                          >
-                            {item.statusID === 0 ? "อนุมัติ" :
-                             item.statusID === 1 ? "รับของ" : "ติดตาม"}
-                          </Button>
-                        )}
-                        {item.statusID === 8 && (
-                          <Button size="small" variant="contained" color="success" onClick={() => handleReturnClick(item.borrowID)}>ส่งคืนสำเร็จ</Button>
-                        )}
-                        {item.statusID !== 7 && item.statusID !== 8 && item.statusID !== 9 && (
-                          <Button size="small" variant="contained" color="error" onClick={() => handleReject(item.borrowID)}>ไม่อนุมัติ</Button>
-                        )}
-                      </Stack>
+                  <TableRow>
+                    <TableCell colSpan={8} align="center">
+                      ไม่พบข้อมูล
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  borrowList.flatMap((row) =>
+                    row.items?.map((equip) => (
+                      <TableRow key={`${row.borrowID}-${equip.equipmentID}`}>
+                        <TableCell>{formatDateOnly(row.borrowDate)}</TableCell>
+                        <TableCell>{equip.equipmentName}</TableCell>
+                        <TableCell>{equip.amount}</TableCell>
+                        <TableCell>{formatDateOnly(row.receiveDate)}</TableCell>
+                        <TableCell>{formatDateOnly(row.returnDate)}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={equip.detailStatusName || "-"}
+                            color={
+                              equip.detailStatusID === 3
+                                ? "success"
+                                : equip.detailStatusID === 8
+                                ? "warning"
+                                : "default"
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={row.statusName || "-"}
+                            color={getStatusColor(Number(row.statusID))}
+                            variant="outlined"
+                         />
+                        </TableCell>
+                        
+          
+                        <TableCell>
+                          <Stack direction="row" spacing={1}>
+                            {/* ✅ ปุ่มส่งคืนอุปกรณ์ */}
+                            {row.statusID === 8 && equip.detailStatusID !== 3 && (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="success"
+                                onClick={() => openReturnDialog(row, equip)}
+                              >
+                                ส่งคืนอุปกรณ์นี้
+                              </Button>
+                            )}
+
+                            {/* ✅ อนุมัติ / ไม่อนุมัติ */}
+                            {row.statusID === 0 && (
+                              <>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  color="success"
+                                  onClick={() => handleUpdateStatus(row.borrowID, row.statusID)}
+                                >
+                                  อนุมัติ
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  color="error"
+                                  onClick={() => handleReject(row.borrowID)}
+                                >
+                                  ไม่อนุมัติ
+                                </Button>
+                              </>
+                            )}
+
+                            {/* ✅ รับของ */}
+                            {row.statusID === 1 && (
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color="primary"
+                                onClick={() => handleUpdateStatus(row.borrowID, row.statusID)}
+                              >
+                                รับของ
+                              </Button>
+                            )}
+
+                            {/* ✅ ถ้าสถานะรายการเป็น 8 → แสดงปุ่ม "ส่งคืนสำเร็จ" ทันที */}
+                            {row.statusID === 8 && (
+                            <Button
+                             size="small"
+                             variant="contained"
+                             color="success"
+                             onClick={() => completeBorrow(row.borrowID)}
+                           >
+                           ส่งคืนสำเร็จ
+                             </Button>
+                            )}
+
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )
+                )}
               </TableBody>
             </Table>
           </TableContainer>
         </Box>
 
-        {/* Dialog รายละเอียด */}
-        <Dialog open={detailOpen} onClose={handleDetailClose} maxWidth="sm" fullWidth>
-          <DialogTitle>รายละเอียดการยืม-คืน</DialogTitle>
-          <DialogContent dividers>
-            {selectedDetail ? (
-              <Box>
-                <Typography variant="body1" mb={1}><strong>วันที่ยืม:</strong> {formatDateOnly(selectedDetail.borrowDate)}</Typography>
-                <Typography variant="body1" mb={1}><strong>ประเภท:</strong> {selectedDetail.typeName || "-"}</Typography>
-                <Typography variant="body1" mb={1}><strong>วันรับของ:</strong> {formatDateOnly(selectedDetail.receiveDate)}</Typography>
-                <Typography variant="body1" mb={1}><strong>วันส่งคืน:</strong> {formatDateOnly(selectedDetail.returnDate)}</Typography>
-                <Typography variant="body1" mb={1}><strong>สถานะ:</strong> {selectedDetail.statusName || "-"}</Typography>
-                <Typography variant="body1" mb={1}><strong>ชื่อผู้ยืม:</strong> {selectedDetail.firstname && selectedDetail.lastname ? `${selectedDetail.firstname} ${selectedDetail.lastname}` : "-"}</Typography>
-                {selectedDetail.items && selectedDetail.items.length > 0 ? selectedDetail.items.map((item, idx) => (
-                  <Typography key={idx} variant="body2" sx={{ ml: 2 }}>- {item.equipmentName} จำนวน {item.amount} ชิ้น</Typography>
-                )) : <Typography variant="body2" sx={{ ml: 2 }}>ไม่มีข้อมูลอุปกรณ์</Typography>}
-              </Box>
-            ) : <Typography>กำลังโหลดข้อมูล...</Typography>}
-          </DialogContent>
-          <DialogActions><Button onClick={handleDetailClose}>ปิด</Button></DialogActions>
-        </Dialog>
-
-        {/* Dialog หมายเหตุ */}
-        <Dialog open={noteOpen} onClose={() => setNoteOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>กรอกหมายเหตุการส่งคืน</DialogTitle>
-          <DialogContent dividers>
+        {/* ✅ Dialog กรอกจำนวน */}
+        <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+          <DialogTitle>กรอกจำนวนอุปกรณ์ที่คืน</DialogTitle>
+          <DialogContent>
             <TextField
               fullWidth
+              margin="dense"
+              label="จำนวนที่สภาพดี"
+              type="number"
+              inputProps={{
+                min: 0,
+                max: selectedEquip?.amount || 0,
+              }}
+              value={goodAmount}
+              onChange={(e) => {
+                const val = parseInt(e.target.value || 0);
+                if (val + parseInt(damagedAmount || 0) <= (selectedEquip?.amount || 0)) {
+                  setGoodAmount(val);
+                }
+              }}
+            />
+            <TextField
+              fullWidth
+              margin="dense"
+              label="จำนวนที่ชำรุด"
+              type="number"
+              inputProps={{
+                min: 0,
+                max: selectedEquip?.amount || 0,
+              }}
+              value={damagedAmount}
+              onChange={(e) => {
+                const val = parseInt(e.target.value || 0);
+                if (val + parseInt(goodAmount || 0) <= (selectedEquip?.amount || 0)) {
+                  setDamagedAmount(val);
+                }
+              }}
+            />
+            <TextField
+              fullWidth
+              margin="dense"
               label="หมายเหตุ"
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              multiline
-              rows={3}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setNoteOpen(false)}>ยกเลิก</Button>
-            <Button onClick={handleConfirmReturn} variant="contained" color="success">ยืนยัน</Button>
+            <Button onClick={() => setDialogOpen(false)}>ยกเลิก</Button>
+            <Button onClick={handleConfirmReturn} color="success" variant="contained">
+              ยืนยันส่งคืน
+            </Button>
           </DialogActions>
         </Dialog>
 
-        <Snackbar open={open} autoHideDuration={2500} onClose={handleClose} anchorOrigin={{ vertical: "top", horizontal: "center" }}>
-          <Alert severity={alertSeverity} sx={{ width: "100%" }}>{alertMsg}</Alert>
+        <Snackbar
+          open={open}
+          autoHideDuration={2500}
+          onClose={handleClose}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert severity={alertSeverity} sx={{ width: "100%" }}>
+            {alertMsg}
+          </Alert>
         </Snackbar>
       </Box>
     </ThemeProvider>
