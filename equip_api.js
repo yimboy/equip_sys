@@ -506,6 +506,7 @@ app.get('/api/history-borrow', (req, res) => {
       bd.equipmentID,
       e.equipmentName,
       bd.amount,
+      bd.note,
       bo.statusID,
       s.statusName,
       bo.imageFile,
@@ -552,6 +553,7 @@ app.get('/api/history-borrow', (req, res) => {
         equipmentID: row.equipmentID,
         equipmentName: row.equipmentName,
         amount: row.amount,
+        note: row.note || "-", // ✅ เพิ่ม note ตรงนี้
         receiveDate: row.receiveDate,
         returnDate: row.returnDate
       });
@@ -1346,29 +1348,77 @@ app.post("/api/update-borrowdetail-status", (req, res) => {
   );
 });
 
-// ✅ อัปเดตสถานะ borrow เป็น 3 เมื่อคืนอุปกรณ์ครบแล้ว
+// ✅ อัปเดตสถานะ borrow เป็น 3 และคืนอุปกรณ์เข้าสต็อก
 app.post("/api/complete-borrow", (req, res) => {
   const { borrowID } = req.body;
   if (!borrowID) {
     return res.status(400).json({ status: false, message: "❌ ไม่พบ borrowID" });
   }
 
-  const sql = `
-    UPDATE borrow
-    SET statusID = 3, returnDate = NOW()
+  // 1️⃣ ดึงรายการอุปกรณ์ที่อยู่ใน borrowdetail
+  const sqlGetDetails = `
+    SELECT equipmentID, goodAmount, damagedAmount
+    FROM borrowdetail
     WHERE borrowID = ?
   `;
-  db.query(sql, [borrowID], (err, result) => {
+  db.query(sqlGetDetails, [borrowID], (err, details) => {
     if (err) {
-      console.error("❌ Error updating borrow:", err);
-      return res.status(500).json({ status: false, message: "อัปเดตสถานะไม่สำเร็จ" });
+      console.error("❌ Error fetching borrow details:", err);
+      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการดึงรายการอุปกรณ์" });
     }
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ status: false, message: "❌ ไม่พบรายการนี้" });
+
+    if (details.length === 0) {
+      return res.status(404).json({ status: false, message: "❌ ไม่พบรายละเอียดอุปกรณ์ของรายการนี้" });
     }
-    return res.json({ status: true, message: "✅ เปลี่ยนสถานะรายการเป็น 'ส่งคืนสำเร็จ' แล้ว" });
+
+    // 2️⃣ อัปเดต stock ของอุปกรณ์แต่ละรายการ
+    const updatePromises = details.map((item) => {
+      const totalReturn = (item.goodAmount || 0) + (item.damagedAmount || 0);
+      return new Promise((resolve, reject) => {
+        const sqlUpdateEquip = `
+          UPDATE equipments
+          SET amount = amount + ?
+          WHERE equipmentID = ?
+        `;
+        db.query(sqlUpdateEquip, [totalReturn, item.equipmentID], (err2) => {
+          if (err2) {
+            console.error("❌ Error updating equipment stock:", err2);
+            return reject(err2);
+          }
+          resolve();
+        });
+      });
+    });
+
+    // 3️⃣ เมื่อคืนครบแล้ว → อัปเดตสถานะ borrow เป็น 3
+    Promise.all(updatePromises)
+      .then(() => {
+        const sqlUpdateBorrow = `
+          UPDATE borrow
+          SET statusID = 3, returnDate = NOW()
+          WHERE borrowID = ?
+        `;
+        db.query(sqlUpdateBorrow, [borrowID], (err3, result) => {
+          if (err3) {
+            console.error("❌ Error updating borrow:", err3);
+            return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการอัปเดตสถานะ" });
+          }
+          if (result.affectedRows === 0) {
+            return res.status(404).json({ status: false, message: "❌ ไม่พบรายการนี้" });
+          }
+          return res.json({
+            status: true,
+            message: "✅ คืนอุปกรณ์เข้าสต็อกและเปลี่ยนสถานะเป็น 'ส่งคืนสำเร็จ' แล้ว",
+          });
+        });
+      })
+      .catch((err4) => {
+        console.error("❌ Error in returning stock:", err4);
+        return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการคืนอุปกรณ์เข้าสต็อก" });
+      });
   });
 });
+
 
 
 

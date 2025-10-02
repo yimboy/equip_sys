@@ -359,7 +359,7 @@ function History() {
                           color={getStatusColor(item.statusID)}
                           sx={{ fontWeight: "bold" }}
                           variant="contained"
-                          size="small"
+                          
                         />
                       </TableCell>
                       <TableCell>
@@ -394,7 +394,7 @@ function History() {
                 <Typography><b>สถานะ:</b> {selectedDetail.statusName || "-"}</Typography>
                 <Typography><b>ผู้อนุมัติ:</b> {selectedDetail.approveByName || "-"}</Typography>
                 <Typography><b>วันที่อนุมัติ:</b> {formatDateOnly(selectedDetail.approveDate)}</Typography>
-                <Typography><b>หมายเหตุ:</b> {selectedDetail.note}</Typography>
+                
                 {selectedDetail.details?.length > 0 ? (
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="subtitle1" gutterBottom>รายการสินค้า</Typography>
@@ -404,6 +404,7 @@ function History() {
                           <TableCell>ลำดับ</TableCell>
                           <TableCell>ชื่ออุปกรณ์</TableCell>
                           <TableCell>จำนวน</TableCell>
+                          <TableCell>หมายเหตุ</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -412,6 +413,7 @@ function History() {
                             <TableCell>{idx + 1}</TableCell>
                             <TableCell>{item.equipmentName}</TableCell>
                             <TableCell>{item.amount}</TableCell>
+                            <TableCell>{item.note || "-"}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

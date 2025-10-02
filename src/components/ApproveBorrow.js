@@ -162,13 +162,14 @@ function ApproveBorrow() {
       });
   };
 
+  // ✅ แก้ตรงนี้ให้ใช้ API /api/reject-borrow
   const handleReject = (borrowID) => {
-    if (!window.confirm("ยืนยันการไม่อนุมัติการยืม-คืนนี้?")) return;
+    if (!window.confirm("❌ ยืนยันการไม่อนุมัติการยืม-คืนนี้?")) return;
 
-    fetch("http://localhost:4000/api/update-borrow-status", {
+    fetch("http://localhost:4000/api/reject-borrow", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ borrowID, statusID: 2, userID }),
+      body: JSON.stringify({ borrowID }),
     })
       .then((res) => res.json())
       .then((data) => {
@@ -238,12 +239,6 @@ function ApproveBorrow() {
       });
   };
 
-  // ✅ ตรวจว่าอุปกรณ์ทั้งหมดของรายการเป็น statusID = 3 แล้วหรือยัง
-  const isAllReturned = (borrow) => {
-    return borrow.items?.length > 0 && borrow.items.every((item) => item.detailStatusID === 3);
-  };
-
-  // ✅ กดปุ่ม “ส่งคืนสำเร็จ” เพื่อเปลี่ยนสถานะ borrow เป็น 3
   const completeBorrow = (borrowID) => {
     if (!window.confirm("ยืนยันว่ารายการนี้คืนอุปกรณ์ครบแล้ว?")) return;
 
@@ -347,14 +342,14 @@ function ApproveBorrow() {
                           <Chip
                             label={row.statusName || "-"}
                             color={getStatusColor(Number(row.statusID))}
-                            variant="outlined"
-                         />
+                            sx={{ fontWeight: "bold" }}
+                            variant="contained"
+                          
+                          />
                         </TableCell>
-                        
-          
+
                         <TableCell>
                           <Stack direction="row" spacing={1}>
-                            {/* ✅ ปุ่มส่งคืนอุปกรณ์ */}
                             {row.statusID === 8 && equip.detailStatusID !== 3 && (
                               <Button
                                 size="small"
@@ -366,7 +361,6 @@ function ApproveBorrow() {
                               </Button>
                             )}
 
-                            {/* ✅ อนุมัติ / ไม่อนุมัติ */}
                             {row.statusID === 0 && (
                               <>
                                 <Button
@@ -388,7 +382,6 @@ function ApproveBorrow() {
                               </>
                             )}
 
-                            {/* ✅ รับของ */}
                             {row.statusID === 1 && (
                               <Button
                                 size="small"
@@ -400,18 +393,16 @@ function ApproveBorrow() {
                               </Button>
                             )}
 
-                            {/* ✅ ถ้าสถานะรายการเป็น 8 → แสดงปุ่ม "ส่งคืนสำเร็จ" ทันที */}
                             {row.statusID === 8 && (
-                            <Button
-                             size="small"
-                             variant="contained"
-                             color="success"
-                             onClick={() => completeBorrow(row.borrowID)}
-                           >
-                           ส่งคืนสำเร็จ
-                             </Button>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color="success"
+                                onClick={() => completeBorrow(row.borrowID)}
+                              >
+                                ส่งคืนสำเร็จ
+                              </Button>
                             )}
-
                           </Stack>
                         </TableCell>
                       </TableRow>
