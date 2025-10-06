@@ -315,6 +315,7 @@ function EditBring() {
         {/* 🔹 AppBar */}
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
+            {false && (
             <IconButton
               color="inherit"
               onClick={() => navigate("/bring")}
@@ -322,6 +323,7 @@ function EditBring() {
             >
               <ArrowBackIcon />
             </IconButton>
+            )}
             <IconButton
               color="inherit"
               edge="start"

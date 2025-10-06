@@ -167,7 +167,7 @@ function Login() {
               sx={{ mt: 1 }}
               onClick={handleRegisterClick}
             >
-              สมัครสมาชิก
+              ลงทะเบียน
             </Button>
             <Button
               variant="text"

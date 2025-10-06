@@ -77,7 +77,7 @@ function Register() {
       >
         <Paper elevation={3} sx={{ p: 4, minWidth: 320 }}>
           <Typography variant="h5" align="center" gutterBottom>
-            สมัครสมาชิก
+            ลงทะเบียน
           </Typography>
           <form onSubmit={handleRegister}>
             <TextField
@@ -121,6 +121,36 @@ function Register() {
               onChange={handleChange}
               required
             />
+            <TextField
+              label="อีเมล"
+              name="email"
+              variant="outlined"
+              fullWidth
+              margin="normal"
+              value={form.email}
+              onChange={handleChange}
+              required
+            />
+            <TextField
+              label="เบอร์โทรศัพท์"
+              name="mobilePhone"
+              variant="outlined"
+              fullWidth
+              margin="normal"
+              value={form.mobilePhone}
+              onChange={handleChange}
+              required
+            />
+            <TextField
+              label="กองงาน"
+              name="division"
+              variant="outlined"
+              fullWidth
+              margin="normal"
+              value={form.division}
+              onChange={handleChange}
+              required
+            />
             <Button
               type="submit"
               variant="contained"
@@ -128,7 +158,7 @@ function Register() {
               fullWidth
               sx={{ mt: 2 }}
             >
-              สมัครสมาชิก
+              ลงทะเบียน
             </Button>
           </form>
         </Paper>

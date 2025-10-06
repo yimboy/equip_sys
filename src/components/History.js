@@ -56,6 +56,7 @@ function History() {
   const firstname = localStorage.getItem("firstname");
   const lastname = localStorage.getItem("lastname");
   const userID = localStorage.getItem("userID");
+  const roleID = parseInt(localStorage.getItem("roleID"), 10); // ✅ เพิ่ม roleID
 
   const getStatusColor = (statusID) => {
     switch (statusID) {
@@ -78,10 +79,19 @@ function History() {
     return dateStr.slice(0, 10);
   };
 
+  // ✅ ปรับให้ส่ง roleID ไปด้วย และไม่ส่ง userID ถ้า role มีสิทธิ์ดูทั้งหมด
   const loadHistory = () => {
+    const bringQuery = (roleID === 2 || roleID === 4) 
+  ? `?roleID=${roleID}` 
+  : `?userID=${userID}&roleID=${roleID}`;
+
+const borrowQuery = (roleID === 3 || roleID === 4) 
+  ? `?roleID=${roleID}` 
+  : `?userID=${userID}&roleID=${roleID}`;
+
     Promise.all([
-      fetch(`http://localhost:4000/api/history-bring?userID=${userID}`).then((res) => res.json()),
-      fetch(`http://localhost:4000/api/history-borrow?userID=${userID}`).then((res) => res.json()),
+      fetch(`http://localhost:4000/api/history-bring${bringQuery}`).then((res) => res.json()),
+      fetch(`http://localhost:4000/api/history-borrow${borrowQuery}`).then((res) => res.json()),
     ])
       .then(([bringData, borrowData]) => {
         const bring = bringData.map((item) => ({
@@ -115,7 +125,7 @@ function History() {
 
   useEffect(() => {
     if (userID) loadHistory();
-  }, [userID]);
+  }, [userID, roleID]); // ✅ โหลดใหม่ถ้า role เปลี่ยน
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -218,6 +228,7 @@ function History() {
           <td style="text-align:center;">${idx + 1}</td>
           <td>${item.equipmentName}</td>
           <td style="text-align:center;">${item.amount}</td>
+          <td>${item.note || "-"}</td>
         </tr>`
     ).join("") || "<tr><td colspan='3'>ไม่มีรายการอุปกรณ์</td></tr>";
 
@@ -263,6 +274,7 @@ function History() {
                 <th style="width:60px;">ลำดับ</th>
                 <th>ชื่ออุปกรณ์</th>
                 <th style="width:100px;">จำนวน</th>
+                <th style="width:200px;">หมายเหตุ</th>
               </tr>
             </thead>
             <tbody>
@@ -291,7 +303,6 @@ function History() {
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
-            {/* ✅ โลโก้กลับมา + คลิกแล้วกลับ homepage */}
             <IconButton color="inherit" edge="start" sx={{ mr: 1 }} onClick={() => navigate("/homepage")}>
               <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
             </IconButton>
@@ -317,10 +328,11 @@ function History() {
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ maxWidth: 1000, mx: "auto", mt: 6, p: 2 }}>
+        <Box sx={{ maxWidth: 1100, mx: "auto", mt: 6, p: 2 }}>
           <Typography variant="h5" gutterBottom>
-            ประวัติการเบิก-ยืมอุปกรณ์ของคุณ
+            {(roleID === 2 || roleID === 3|| roleID === 4) ? "ประวัติการเบิก-ยืมอุปกรณ์ทั้งหมด" : "ประวัติของคุณ"}
           </Typography>
+
           <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
             <Button variant={filterType === "bring" ? "contained" : "outlined"} onClick={() => setFilterType("bring")}>
               เบิก-จ่าย
@@ -329,10 +341,13 @@ function History() {
               ยืม-คืน
             </Button>
           </Stack>
+
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
+                  {/* ✅ เพิ่มชื่อผู้ใช้ถ้า role มีสิทธิ์ดูทั้งหมด */}
+                  {(roleID === 2 || roleID === 3|| roleID === 4) && <TableCell>ชื่อผู้ใช้งาน</TableCell>}
                   <TableCell>วันที่ทำรายการ</TableCell>
                   <TableCell>จำนวนรายการ</TableCell>
                   <TableCell>วันรับของ</TableCell>
@@ -344,11 +359,14 @@ function History() {
               <TableBody>
                 {filteredHistory.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">ไม่พบข้อมูล</TableCell>
+                    <TableCell colSpan={7} align="center">ไม่พบข้อมูล</TableCell>
                   </TableRow>
                 ) : (
                   filteredHistory.map((item, idx) => (
                     <TableRow key={idx}>
+                      {(roleID === 2 || roleID === 3|| roleID === 4) && (
+                        <TableCell>{item.username || "-"}</TableCell>
+                      )}
                       <TableCell>{formatDateOnly(item.date)}</TableCell>
                       <TableCell>{item.count}</TableCell>
                       <TableCell>{formatDateOnly(item.receiveDate)}</TableCell>
@@ -359,7 +377,6 @@ function History() {
                           color={getStatusColor(item.statusID)}
                           sx={{ fontWeight: "bold" }}
                           variant="contained"
-                          
                         />
                       </TableCell>
                       <TableCell>
@@ -367,7 +384,7 @@ function History() {
                           <Button size="small" variant="outlined" onClick={() => handleDetailOpen(item)}>
                             รายละเอียด
                           </Button>
-                          {item.statusID === 0 && (
+                          {roleID === 1 && item.statusID === 0 && (
                             <Button size="small" variant="contained" color="error" onClick={() => handleCancel(item)}>
                               ยกเลิก
                             </Button>
@@ -382,6 +399,7 @@ function History() {
           </TableContainer>
         </Box>
 
+        {/* Dialog + Snackbar เหมือนเดิม */}
         <Dialog open={detailOpen} onClose={handleDetailClose} maxWidth="sm" fullWidth>
           <DialogTitle>รายละเอียดรายการ</DialogTitle>
           <DialogContent dividers>
@@ -394,6 +412,7 @@ function History() {
                 <Typography><b>สถานะ:</b> {selectedDetail.statusName || "-"}</Typography>
                 <Typography><b>ผู้อนุมัติ:</b> {selectedDetail.approveByName || "-"}</Typography>
                 <Typography><b>วันที่อนุมัติ:</b> {formatDateOnly(selectedDetail.approveDate)}</Typography>
+                <Typography><b>หมายเหตุ:</b> {selectedDetail.note || "-"}</Typography>
                 
                 {selectedDetail.details?.length > 0 ? (
                   <Box sx={{ mt: 2 }}>

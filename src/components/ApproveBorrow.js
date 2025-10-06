@@ -319,7 +319,10 @@ function ApproveBorrow() {
                   </TableRow>
                 ) : (
                   borrowList.flatMap((row) =>
-                    row.items?.map((equip) => (
+                    row.items?.map((equip, index) => {
+                       const isFirstItem = index === 0; // ✅ แค่ชิ้นแรกของแต่ละ borrowID
+
+                       return (
                       <TableRow key={`${row.borrowID}-${equip.equipmentID}`}>
                         <TableCell>{formatDateOnly(row.borrowDate)}</TableCell>
                         <TableCell>{equip.equipmentName}</TableCell>
@@ -361,7 +364,7 @@ function ApproveBorrow() {
                               </Button>
                             )}
 
-                            {row.statusID === 0 && (
+                            {row.statusID === 0 && isFirstItem && (
                               <>
                                 <Button
                                   size="small"
@@ -382,7 +385,7 @@ function ApproveBorrow() {
                               </>
                             )}
 
-                            {row.statusID === 1 && (
+                            {row.statusID === 1 && isFirstItem &&  (
                               <Button
                                 size="small"
                                 variant="contained"
@@ -393,7 +396,7 @@ function ApproveBorrow() {
                               </Button>
                             )}
 
-                            {row.statusID === 8 && (
+                            {row.statusID === 8 && isFirstItem && (
                               <Button
                                 size="small"
                                 variant="contained"
@@ -406,9 +409,10 @@ function ApproveBorrow() {
                           </Stack>
                         </TableCell>
                       </TableRow>
-                    ))
+                        );
+                    })
                   )
-                )}
+                )}  
               </TableBody>
             </Table>
           </TableContainer>

@@ -49,7 +49,7 @@ function Return() {
   const getStatusColor = (statusID) => {
     switch (statusID) {
       case 0: return "default"; // รอดำเนินการ
-      case 1: return "info";    // อนุมัติ
+      case 1: return "success";    // อนุมัติ
       case 2: return "error";   // ไม่อนุมัติ
       case 3: return "success"; // ส่งคืนสำเร็จ
       case 7: return "warning"; // ค้างคืน

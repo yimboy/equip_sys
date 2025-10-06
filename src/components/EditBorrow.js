@@ -303,6 +303,7 @@ function EditBorrow() {
       <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
         <AppBar position="static" color="primary" elevation={1}>
           <Toolbar>
+            {false && (
             <IconButton
               color="inherit"
               onClick={() => navigate("/borrow")}
@@ -311,6 +312,7 @@ function EditBorrow() {
             >
               <ArrowBackIcon />
             </IconButton>
+            )}
             <IconButton
               color="inherit"
               edge="start"
