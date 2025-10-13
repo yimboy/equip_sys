@@ -245,7 +245,7 @@ function Bring() {
 
         <Box sx={{ maxWidth: 900, mx: "auto", mt: 6, p: 2 }}>
           <Typography variant="h5" gutterBottom>
-            รายการอุปกรณ์สำนักงาน
+            รายการวัสดุอุปกรณ์สำนักงาน
           </Typography>
           <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
             <TextField

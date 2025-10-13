@@ -327,7 +327,7 @@ function EditBorrow() {
               />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              ยืม-คืนโสตทัศนูปกรณ์
+              แก้ไขอุปกรณ์โสตทัศนูปกรณ์
             </Typography>
             {isLoggedIn && (
               <Typography sx={{ mr: 1 }}>

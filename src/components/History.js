@@ -24,6 +24,10 @@ import {
   DialogContent,
   DialogActions,
   Chip,
+  TextField,       // ✅ เพิ่ม
+  FormControl,     // ✅ เพิ่ม
+  InputLabel,      // ✅ เพิ่ม
+  Select,     // ✅ เพิ่ม
 } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
@@ -51,6 +55,11 @@ function History() {
   const [filterType, setFilterType] = useState(tabParam === "borrow" ? "borrow" : "bring");
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
+
+  // 🆕 ฟิลเตอร์ใหม่
+  const [filterDate, setFilterDate] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterUsername, setFilterUsername] = useState("");
 
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const firstname = localStorage.getItem("firstname");
@@ -142,6 +151,8 @@ const borrowQuery = (roleID === 3 || roleID === 4)
     }
   }, [tabParam]);
 
+  
+
   const handleUserIconClick = (event) => {
     if (!isLoggedIn) navigate("/login");
     else setAnchorEl(event.currentTarget);
@@ -165,10 +176,19 @@ const borrowQuery = (roleID === 3 || roleID === 4)
     setOpen(false);
   };
 
+  // 🧮 ฟิลเตอร์ข้อมูล
   const filteredHistory = history.filter((item) => {
-    if (filterType === "bring") return item.type === "เบิก-จ่าย";
-    if (filterType === "borrow") return item.type === "ยืม-คืน";
-    return true;
+    const matchType =
+      filterType === "bring" ? item.type === "เบิก-จ่าย" :
+      filterType === "borrow" ? item.type === "ยืม-คืน" : true;
+
+    const matchDate = filterDate ? formatDateOnly(item.date) === filterDate : true;
+    const matchStatus = filterStatus ? String(item.statusID) === filterStatus : true;
+    const matchUsername = filterUsername
+      ? (item.username || "").toLowerCase().includes(filterUsername.toLowerCase())
+      : true;
+
+    return matchType && matchDate && matchStatus && matchUsername;
   });
 
   const handleDetailOpen = (item) => {
@@ -333,14 +353,61 @@ const borrowQuery = (roleID === 3 || roleID === 4)
             {(roleID === 2 || roleID === 3|| roleID === 4) ? "ประวัติการเบิก-ยืมอุปกรณ์ทั้งหมด" : "ประวัติของคุณ"}
           </Typography>
 
+          {/* 🆕 Section: ฟิลเตอร์ */}
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 3 }}>
+            <TextField
+              type="date"
+              label="วันที่"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+
+            <FormControl sx={{ minWidth: 180 }}>
+              <InputLabel>สถานะรายการ</InputLabel>
+              <Select
+                value={filterStatus}
+                label="สถานะรายการ"
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <MenuItem value="">ทั้งหมด</MenuItem>
+                <MenuItem value="0">กำลังดำเนินการ</MenuItem>
+                <MenuItem value="1">อนุมัติ</MenuItem>
+                <MenuItem value="2">ไม่อนุมัติ</MenuItem>
+                <MenuItem value="3">ส่งคืนสำเร็จ</MenuItem>
+                <MenuItem value="5">รอคืน</MenuItem>
+                <MenuItem value="6">ยกเลิก</MenuItem>
+                <MenuItem value="8">รอตรวจสอบ</MenuItem>
+                <MenuItem value="9">รับของสำเร็จ</MenuItem>
+              </Select>
+            </FormControl>
+
+            {(roleID === 2 || roleID === 3 || roleID === 4) && (
+              <TextField
+                label="ชื่อผู้ใช้งาน"
+                value={filterUsername}
+                onChange={(e) => setFilterUsername(e.target.value)}
+              />
+            )}
+          </Stack>
+
+          {/* ✅ ปุ่มสลับประเภท */}
           <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-            <Button variant={filterType === "bring" ? "contained" : "outlined"} onClick={() => setFilterType("bring")}>
+            <Button
+              variant={filterType === "bring" ? "contained" : "outlined"}
+              onClick={() => setFilterType("bring")}
+            >
               เบิก-จ่าย
             </Button>
-            <Button variant={filterType === "borrow" ? "contained" : "outlined"} onClick={() => setFilterType("borrow")}>
+            <Button
+              variant={filterType === "borrow" ? "contained" : "outlined"}
+              onClick={() => setFilterType("borrow")}
+            >
               ยืม-คืน
             </Button>
           </Stack>
+
+          
 
           <TableContainer component={Paper}>
             <Table>

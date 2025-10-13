@@ -145,7 +145,7 @@ function Return() {
               />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              คืนอุปกรณ์โสตฯ
+              คืนโสตทัศนูปกรณ์
             </Typography>
             {isLoggedIn && (
               <Typography sx={{ mr: 1 }}>

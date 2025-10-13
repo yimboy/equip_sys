@@ -309,7 +309,7 @@ function HomePage() {
               <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52 }} />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              ระบบเบิก-จ่ายอุปกรณ์
+              ระบบยืม-คืนอุปกรณ์
             </Typography>
             {isLoggedIn && <Typography sx={{ mr: 1 }}>{first} {last}</Typography>}
 
@@ -368,7 +368,7 @@ function HomePage() {
 
         {/* 📄 เนื้อหา */}
         <Box sx={{ minHeight: "calc(100vh - 64px)", display: "flex", flexDirection: "column", alignItems: "center", pt: 6 }}>
-          <Typography variant="h4" gutterBottom>ระบบเบิก-จ่ายอุปกรณ์</Typography>
+          <Typography variant="h4" gutterBottom>ระบบยืม-คืนอุปกรณ์</Typography>
           <Typography variant="subtitle1" color="text.secondary" gutterBottom>ยินดีต้อนรับเข้าสู่ระบบบริหารจัดการอุปกรณ์</Typography>
           <Stack spacing={2} sx={{ mt: 4, width: 300 }}>
            {roleID === 1 && (
@@ -380,7 +380,7 @@ function HomePage() {
             )}
           {roleID === 2 && (
             <Button variant="contained" color="success" size="large" onClick={() => handleProtectedClick("/edit-bring")}>
-                แก้ไขอุปกรณ์สำนักงาน
+                แก้ไขวัสดุอุปกรณ์สำนักงาน
               </Button>
             )}
             {roleID === 3 && (
@@ -401,11 +401,11 @@ function HomePage() {
             )}
             {roleID === 4 && (
               <Button variant="contained" color="secondary" size="large" onClick={() => handleProtectedClick("/editrole")}>
-                แก้ไขสิทธิ์ผู้ใช้
+                จัดการสิทธิ์ผู้ใช้
               </Button>
             )}
             <Button variant="outlined" color="info" size="large" onClick={() => handleProtectedClick("/history")}>
-              ประวัติการเบิก-จ่าย
+              ประวัติการเบิก-ยืมอุปกรณ์
             </Button>
           </Stack>
         </Box>

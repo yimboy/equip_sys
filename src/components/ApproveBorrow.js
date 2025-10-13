@@ -270,7 +270,7 @@ function ApproveBorrow() {
               <Box component="img" src={logo} alt="logo" sx={{ width: 52, height: 52, objectFit: "contain" }} />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              อนุมัติการยืม-คืนอุปกรณ์
+              อนุมัติการยืม-คืน
             </Typography>
             {isLoggedIn && (
               <Typography sx={{ mr: 1 }}>

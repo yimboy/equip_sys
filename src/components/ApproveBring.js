@@ -174,7 +174,7 @@ function ApproveBring() {
               />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              อนุมัติการเบิกอุปกรณ์
+              อนุมัติการเบิก-จ่าย
             </Typography>
             {isLoggedIn && (
               <Typography sx={{ mr: 1 }}>

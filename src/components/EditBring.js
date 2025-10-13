@@ -338,7 +338,7 @@ function EditBring() {
               />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              เบิก-จ่ายอุปกรณ์สำนักงาน
+              แก้ไขวัสดุอุปกรณ์สำนักงาน
             </Typography>
             {isLoggedIn && (
               <Typography sx={{ mr: 1 }}>

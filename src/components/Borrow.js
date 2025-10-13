@@ -237,7 +237,7 @@ function Borrow() {
               />
             </IconButton>
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              ยืม-คืนโสตทัศนูปกรณ์
+              ยืมโสตทัศนูปกรณ์
             </Typography>
             {isLoggedIn && (
               <Typography sx={{ mr: 1 }}>
