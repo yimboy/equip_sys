@@ -1252,6 +1252,59 @@ app.post("/api/update-borrow-status", (req, res) => {
         "borrow-approve",
         note
       );
+} else if (statusID === 6 && (currentStatus === 0 || currentStatus === 1)) {
+  // ✅ ดึงรายการอุปกรณ์ของคำขอยืมนี้
+  const sqlDetail = `
+    SELECT equipmentID, amount 
+    FROM borrowdetail 
+    WHERE borrowID = ?
+  `;
+  db.query(sqlDetail, [borrowID], (errDetail, details) => {
+    if (errDetail) {
+      console.error("❌ Error fetching borrow details:", errDetail);
+      return res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการดึงข้อมูลอุปกรณ์" });
+    }
+
+    if (details.length === 0) {
+      // ถ้าไม่มีรายละเอียด ก็อัปเดตสถานะอย่างเดียว
+      return updateBorrow(
+        statusID,
+        "❌ ยกเลิกรายการเรียบร้อย (ไม่มีอุปกรณ์ในรายการ)",
+        "❌ คำขอยืมของคุณถูกยกเลิก",
+        "borrow-cancel",
+        note
+      );
+    }
+
+    // ✅ คืนอุปกรณ์กลับเข้า stock
+    const promises = details.map(item =>
+      new Promise((resolve, reject) => {
+        const sqlUpdateEq = "UPDATE equipments SET amount = amount + ? WHERE equipmentID = ?";
+        db.query(sqlUpdateEq, [item.amount, item.equipmentID], (errUpdate) => {
+          if (errUpdate) reject(errUpdate);
+          else resolve();
+        });
+      })
+    );
+
+    Promise.all(promises)
+      .then(() => {
+        console.log("✅ คืนสต็อกอุปกรณ์เรียบร้อย (ยกเลิกรายการ)");
+        updateBorrow(
+          statusID,
+          "❌ ยกเลิกรายการเรียบร้อย และคืนอุปกรณ์เข้าสต็อกแล้ว",
+          "❌ คำขอยืมของคุณถูกยกเลิกและคืนอุปกรณ์เข้าสต็อกเรียบร้อย",
+          "borrow-cancel",
+          note
+        );
+      })
+      .catch(e => {
+        console.error("❌ Error updating stock after cancel:", e);
+        res.status(500).json({ status: false, message: "เกิดข้อผิดพลาดในการคืนอุปกรณ์หลังยกเลิก" });
+      });
+  });
+
+
 
     } else if (statusID === 9 && currentStatus === 1) {
       // 1 → 9 รับของ

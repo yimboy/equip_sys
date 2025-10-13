@@ -185,6 +185,28 @@ function ApproveBorrow() {
       });
   };
 
+  const handleCancel = (borrowID) => {
+  if (!window.confirm("⚠️ ยืนยันการยกเลิกรายการนี้?")) return;
+
+  fetch("http://localhost:4000/api/update-borrow-status", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ borrowID, statusID: 6, userID }),
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      setAlertMsg(data.message || "ยกเลิกรายการสำเร็จ");
+      setAlertSeverity(data.status ? "success" : "error");
+      setOpen(true);
+      if (data.status) loadBorrowData();
+    })
+    .catch(() => {
+      setAlertMsg("เกิดข้อผิดพลาดในการยกเลิกรายการ");
+      setAlertSeverity("error");
+      setOpen(true);
+    });
+};
+
   const openReturnDialog = (borrow, equip) => {
     setSelectedBorrow(borrow);
     setSelectedEquip(equip);
@@ -393,6 +415,17 @@ function ApproveBorrow() {
                                 onClick={() => handleUpdateStatus(row.borrowID, row.statusID)}
                               >
                                 รับของ
+                              </Button>
+                            )}
+
+                            {row.statusID === 1 && isFirstItem &&  (
+                              <Button
+                                size="small"
+                                variant="contained"
+                                color="error"
+                                onClick={() => handleCancel(row.borrowID, row.statusID)}
+                              >
+                                ยกเลิก
                               </Button>
                             )}
 
